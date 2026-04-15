@@ -3,7 +3,17 @@ import Database from 'better-sqlite3';
 import { handleChat } from '../../src/tools/chat.js';
 
 function makeDb() {
-  return new Database(':memory:');
+  const db = new Database(':memory:');
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )`,
+  ).run();
+  db.prepare(`CREATE INDEX IF NOT EXISTS idx_sessions_id ON sessions(id)`).run();
+  return db;
 }
 
 describe('handleChat', () => {
@@ -143,5 +153,16 @@ describe('handleChat', () => {
     );
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('503');
+  });
+
+  it('returns error on network failure', async () => {
+    const db = makeDb();
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    const result = await handleChat(
+      { session_id: 's5', action: 'send', message: 'Hi', model: 'gemma' },
+      db,
+    );
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('ECONNREFUSED');
   });
 });

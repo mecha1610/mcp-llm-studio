@@ -27,7 +27,9 @@ function ensureSchema(db: Database.Database): void {
 export function openProductionDb(): Database.Database {
   const dir = path.dirname(MCP_SESSIONS_DB);
   fs.mkdirSync(dir, { recursive: true });
-  return new Database(MCP_SESSIONS_DB);
+  const db = new Database(MCP_SESSIONS_DB);
+  ensureSchema(db);
+  return db;
 }
 
 export async function handleChat(
@@ -43,7 +45,6 @@ export async function handleChat(
   db?: Database.Database,
 ): Promise<ToolResult> {
   const database = db ?? openProductionDb();
-  ensureSchema(database);
 
   if (args.action === 'reset') {
     const info = database
@@ -68,7 +69,7 @@ export async function handleChat(
   }
 
   const history = database
-    .prepare('SELECT role, content FROM sessions WHERE id = ? ORDER BY created_at ASC')
+    .prepare('SELECT role, content FROM sessions WHERE id = ? ORDER BY rowid ASC')
     .all(args.session_id) as Row[];
 
   const isNewSession = history.length === 0;
