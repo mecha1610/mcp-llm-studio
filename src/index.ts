@@ -3,6 +3,13 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 
 const LM_STUDIO_URL = process.env.LM_STUDIO_URL ?? 'http://192.168.10.56:1234';
+const LM_STUDIO_API_KEY = process.env.LM_STUDIO_API_KEY ?? '';
+
+function authHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (LM_STUDIO_API_KEY) headers['Authorization'] = `Bearer ${LM_STUDIO_API_KEY}`;
+  return headers;
+}
 
 const server = new McpServer(
   { name: 'llm-studio', version: '1.0.0' },
@@ -19,7 +26,7 @@ server.registerTool(
   },
   async () => {
     try {
-      const res = await fetch(`${LM_STUDIO_URL}/v1/models`, { signal: AbortSignal.timeout(30_000) });
+      const res = await fetch(`${LM_STUDIO_URL}/v1/models`, { headers: authHeaders(), signal: AbortSignal.timeout(30_000) });
       if (!res.ok) {
         return { content: [{ type: 'text' as const, text: `LM Studio error: ${res.status} ${res.statusText}` }], isError: true };
       }
@@ -54,7 +61,7 @@ server.registerTool(
 
       const res = await fetch(`${LM_STUDIO_URL}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({
           model,
           messages,
@@ -92,7 +99,7 @@ server.registerTool(
     try {
       const res = await fetch(`${LM_STUDIO_URL}/v1/embeddings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ model, input }),
         signal: AbortSignal.timeout(30_000),
       });
