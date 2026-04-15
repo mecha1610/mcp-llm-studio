@@ -57,7 +57,10 @@ export async function handleAsk(args: {
 }
 
 async function consumeSSEStream(res: Response): Promise<string> {
-  const reader = res.body!.getReader();
+  if (!res.body) {
+    return '(empty stream)';
+  }
+  const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let accumulated = '';
 
