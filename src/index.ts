@@ -77,6 +77,44 @@ server.registerTool(
   },
 );
 
+// --- embed ---
+server.registerTool(
+  'embed',
+  {
+    title: 'Embed Text',
+    description: 'Generate embeddings for text using an embedding model on LM Studio',
+    inputSchema: z.object({
+      model: z.string().describe('Embedding model ID (e.g. nomic-embed-text-v1.5)'),
+      input: z.union([z.string(), z.array(z.string())]).describe('Text or array of texts to embed'),
+    }),
+  },
+  async ({ model, input }) => {
+    try {
+      const res = await fetch(`${LM_STUDIO_URL}/v1/embeddings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, input }),
+        signal: AbortSignal.timeout(30_000),
+      });
+
+      if (!res.ok) {
+        return { content: [{ type: 'text' as const, text: `LM Studio error: ${res.status} ${res.statusText}` }], isError: true };
+      }
+
+      const data = (await res.json()) as { data: { embedding: number[]; index: number }[] };
+      const summary = data.data.map((d) => `[${d.index}] ${d.embedding.length} dimensions`).join('\n');
+      return {
+        content: [
+          { type: 'text' as const, text: `Embeddings generated:\n${summary}` },
+          { type: 'text' as const, text: JSON.stringify(data.data) },
+        ],
+      };
+    } catch (error) {
+      return { content: [{ type: 'text' as const, text: `Failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+    }
+  },
+);
+
 // --- Transport ---
 async function main() {
   const transport = new StdioServerTransport();

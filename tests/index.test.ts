@@ -105,3 +105,58 @@ describe('askModel', () => {
     await expect(askModel(LM_STUDIO_URL, 'bad-model', 'Hi')).rejects.toThrow('LM Studio error: 404');
   });
 });
+
+async function embedText(
+  baseUrl: string,
+  model: string,
+  input: string | string[],
+): Promise<{ embedding: number[]; index: number }[]> {
+  const res = await fetch(`${baseUrl}/v1/embeddings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, input }),
+  });
+  if (!res.ok) throw new Error(`LM Studio error: ${res.status} ${res.statusText}`);
+  const data = await res.json() as { data: { embedding: number[]; index: number }[] };
+  return data.data;
+}
+
+describe('embedText', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns embeddings for a single string', async () => {
+    const mockResponse = {
+      data: [{ embedding: [0.1, 0.2, 0.3], index: 0 }],
+    };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(mockResponse), { status: 200 }),
+    );
+
+    const result = await embedText(LM_STUDIO_URL, 'nomic-embed', 'hello');
+    expect(result).toEqual([{ embedding: [0.1, 0.2, 0.3], index: 0 }]);
+  });
+
+  it('returns embeddings for multiple strings', async () => {
+    const mockResponse = {
+      data: [
+        { embedding: [0.1, 0.2], index: 0 },
+        { embedding: [0.3, 0.4], index: 1 },
+      ],
+    };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(mockResponse), { status: 200 }),
+    );
+
+    const result = await embedText(LM_STUDIO_URL, 'nomic-embed', ['hello', 'world']);
+    expect(result).toHaveLength(2);
+  });
+
+  it('throws on API error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response('error', { status: 500, statusText: 'Server Error' }),
+    );
+    await expect(embedText(LM_STUDIO_URL, 'nomic-embed', 'test')).rejects.toThrow('LM Studio error: 500');
+  });
+});
