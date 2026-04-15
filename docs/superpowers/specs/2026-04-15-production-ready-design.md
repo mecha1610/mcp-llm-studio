@@ -19,7 +19,7 @@
 
 ### File structure
 
-```
+```text
 src/
   config.ts          # LM_STUDIO_URL, LM_STUDIO_API_KEY, authHeaders(), DB path
   tools/
@@ -46,15 +46,19 @@ docs/
 ## Tools
 
 ### `list_models`
+
 Unchanged functionally. Moved to `src/tools/models.ts`, handler exported as `handleListModels`.
 
 ### `ask`
+
 Extended with optional `stream` parameter (default `false`). When `true`, consumes the SSE stream from LM Studio's `/v1/chat/completions` endpoint and forwards chunks progressively via MCP streaming protocol. Backward-compatible — callers that don't pass `stream` get the same buffered response as today.
 
 Input schema additions:
+
 - `stream?: boolean` — enable token streaming
 
 ### `chat` (new)
+
 Persistent multi-turn conversation tool backed by SQLite.
 
 **Storage:** `better-sqlite3` DB at `MCP_SESSIONS_DB` env var (default: `~/.mcp-llm-studio/sessions.db`). Schema:
@@ -70,6 +74,7 @@ CREATE INDEX idx_sessions_id ON sessions(id);
 ```
 
 **Input schema:**
+
 - `session_id: string` — arbitrary identifier (e.g. `"ibkr-research-1"`)
 - `action: "send" | "reset"` — send a message or clear the session
 - `message?: string` — required when action is `send`
@@ -79,6 +84,7 @@ CREATE INDEX idx_sessions_id ON sessions(id);
 - `max_tokens?: number`
 
 **Behavior:**
+
 - `send`: loads full history from DB, appends user message, calls LM Studio with the `model` passed in the call (model can vary per call — not stored), appends assistant reply, returns reply text
 - `reset`: deletes all rows for `session_id`, returns `"Session <id> cleared (N messages deleted)"`
 - System prompt: stored as `role: system` on first `send` of a new session; ignored on subsequent calls even if provided
@@ -86,6 +92,7 @@ CREATE INDEX idx_sessions_id ON sessions(id);
 **Testing:** handler accepts optional `db` parameter (injected as `:memory:` SQLite in tests).
 
 ### `embed`
+
 Unchanged. Moved to `src/tools/embed.ts`, handler exported as `handleEmbed`.
 
 ---
@@ -93,6 +100,7 @@ Unchanged. Moved to `src/tools/embed.ts`, handler exported as `handleEmbed`.
 ## Config
 
 `.env.example`:
+
 ```bash
 LM_STUDIO_URL=http://192.168.10.56:1234
 LM_STUDIO_API_KEY=          # optional Bearer token
@@ -140,11 +148,13 @@ jobs:
 ## Registration & Distribution
 
 After build:
+
 ```bash
 claude mcp add llm-studio -- node /Users/thomas/Documents/GitHub/mcp-llm-studio/dist/server.js
 ```
 
 With env vars:
+
 ```bash
 claude mcp add llm-studio \
   -e LM_STUDIO_URL=http://192.168.10.56:1234 \
