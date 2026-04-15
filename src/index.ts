@@ -32,6 +32,51 @@ server.registerTool(
   },
 );
 
+// --- ask ---
+server.registerTool(
+  'ask',
+  {
+    title: 'Ask Model',
+    description: 'Send a prompt to a specific LLM model on LM Studio and get a response',
+    inputSchema: z.object({
+      model: z.string().describe('Model ID from LM Studio (use list_models to see available models)'),
+      prompt: z.string().describe('The question or prompt to send'),
+      system: z.string().optional().describe('Optional system prompt'),
+      temperature: z.number().min(0).max(2).optional().describe('Sampling temperature (default 0.7)'),
+      max_tokens: z.number().min(1).optional().describe('Max tokens in response (default 2048)'),
+    }),
+  },
+  async ({ model, prompt, system, temperature, max_tokens }) => {
+    try {
+      const messages: { role: string; content: string }[] = [];
+      if (system) messages.push({ role: 'system', content: system });
+      messages.push({ role: 'user', content: prompt });
+
+      const res = await fetch(`${LM_STUDIO_URL}/v1/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: temperature ?? 0.7,
+          max_tokens: max_tokens ?? 2048,
+        }),
+        signal: AbortSignal.timeout(60_000),
+      });
+
+      if (!res.ok) {
+        return { content: [{ type: 'text' as const, text: `LM Studio error: ${res.status} ${res.statusText}` }], isError: true };
+      }
+
+      const data = (await res.json()) as { choices: { message: { content: string } }[] };
+      const reply = data.choices[0]?.message?.content ?? '(empty response)';
+      return { content: [{ type: 'text' as const, text: reply }] };
+    } catch (error) {
+      return { content: [{ type: 'text' as const, text: `Failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+    }
+  },
+);
+
 // --- Transport ---
 async function main() {
   const transport = new StdioServerTransport();
