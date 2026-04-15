@@ -12,13 +12,13 @@ npm run build
 ## Register in Claude Code
 
 ```bash
-claude mcp add llm-studio -- node /absolute/path/to/mcp-llm-studio/dist/index.js
+claude mcp add llm-studio -- node /absolute/path/to/mcp-llm-studio/dist/server.js
 ```
 
 To use a custom LM Studio URL:
 
 ```bash
-claude mcp add llm-studio -e LM_STUDIO_URL=http://your-ip:1234 -- node /absolute/path/to/mcp-llm-studio/dist/index.js
+claude mcp add llm-studio -e LM_STUDIO_URL=http://your-ip:1234 -- node /absolute/path/to/mcp-llm-studio/dist/server.js
 ```
 
 ## Tools
