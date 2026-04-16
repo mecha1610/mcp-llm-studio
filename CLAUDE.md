@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-An MCP (Model Context Protocol) server that bridges Claude Code to local LM Studio models. It exposes four tools over stdio transport: `list_models`, `ask` (chat completions with optional streaming), `chat` (persistent multi-turn sessions via SQLite), and `embed` (text embeddings). All tools proxy requests to the LM Studio OpenAI-compatible API.
+An MCP (Model Context Protocol) server that bridges Claude Code to local LM Studio models. It exposes seven tools over stdio transport, using a hybrid API surface: LM Studio's native REST API (`/api/v1/*`) for model lifecycle management (`model_list`, `model_load`, `model_unload`, `model_download`) and single-turn inference (`ask`), and the OpenAI-compatible API (`/v1/*`) for multi-turn chat with SQLite persistence (`chat`) and embeddings (`embed`).
 
 ## Commands
 
@@ -18,12 +18,15 @@ npm run test:coverage   # Run tests with coverage report
 
 ## Architecture
 
-- `src/config.ts` — env vars, LM_STUDIO_URL, MCP_SESSIONS_DB, authHeaders()
-- `src/tools/models.ts` — handleListModels()
-- `src/tools/ask.ts` — handleAsk() with optional SSE streaming
-- `src/tools/chat.ts` — handleChat() with SQLite-backed session history, openProductionDb()
-- `src/tools/embed.ts` — handleEmbed()
-- `src/server.ts` — MCP assembly: imports handlers, registers tools, connects StdioServerTransport
+- `src/config.ts` — env vars, URL helpers (`openaiUrl`, `nativeUrl`), authHeaders()
+- `src/tools/model-list.ts` — list loaded models (OpenAI compat)
+- `src/tools/model-load.ts` — load model into VRAM (native API, sync)
+- `src/tools/model-unload.ts` — unload from VRAM (native API)
+- `src/tools/model-download.ts` — download + internal polling (native API, async)
+- `src/tools/ask.ts` — single-turn via native `/api/v1/chat` with reasoning + stats
+- `src/tools/chat.ts` — multi-turn with SQLite-backed session history (OpenAI compat)
+- `src/tools/embed.ts` — text embeddings (OpenAI compat)
+- `src/server.ts` — MCP assembly: imports handlers, registers 7 tools, connects StdioServerTransport
 
 ## Configuration
 

@@ -1,6 +1,6 @@
 # MCP LLM Studio
 
-MCP server that connects Claude Code to your local LM Studio models.
+MCP server that connects Claude Code to your local LM Studio models (v3, hybrid native + OpenAI-compat API).
 
 ## Setup
 
@@ -23,18 +23,21 @@ claude mcp add llm-studio -e LM_STUDIO_URL=http://your-ip:1234 -- node /absolute
 
 ## Tools
 
-### `list_models`
-Lists all loaded models in LM Studio.
+### Model management (native `/api/v1/*`)
 
-### `ask`
-Chat with a model. Parameters:
-- `model` (required) - model ID
-- `prompt` (required) - your message
-- `system` (optional) - system prompt
-- `temperature` (optional, default 0.7)
-- `max_tokens` (optional, default 2048)
+- `model_list` — list loaded models
+- `model_load` — load a model into VRAM (sync, up to 5 min for large models)
+  - params: `model`, `context_length?`, `gpu?`, `flash_attention?`, `ttl?`
+- `model_unload` — unload a model from VRAM
+  - params: `model`
+- `model_download` — download from catalog or HuggingFace (async, polls for up to 2 min)
+  - params: `model`, `quantization?`
 
-### `embed`
-Generate embeddings. Parameters:
-- `model` (required) - embedding model ID
-- `input` (required) - text or array of texts
+### Inference
+
+- `ask` — single-turn via native `/api/v1/chat`, returns text + reasoning + stats
+  - params: `model`, `prompt`, `system?`, `temperature?`, `max_tokens?`, `reasoning?`, `context_length?`, `stream?`
+- `chat` — multi-turn with SQLite persistence via `/v1/chat/completions`
+  - params: `session_id`, `action`, `message?`, `model`, `system?`, `temperature?`, `max_tokens?`, `draft_model?`, `ttl?`
+- `embed` — text embeddings via `/v1/embeddings`
+  - params: `model`, `input`
