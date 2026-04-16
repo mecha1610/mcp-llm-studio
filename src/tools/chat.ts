@@ -41,6 +41,8 @@ export async function handleChat(
     system?: string;
     temperature?: number;
     max_tokens?: number;
+    draft_model?: string;
+    ttl?: number;
   },
   db?: Database.Database,
 ): Promise<ToolResult> {
@@ -60,7 +62,6 @@ export async function handleChat(
     };
   }
 
-  // action === 'send'
   if (!args.message) {
     return {
       content: [{ type: 'text', text: 'Error: message is required when action is "send"' }],
@@ -78,7 +79,6 @@ export async function handleChat(
     'INSERT INTO sessions (id, role, content, created_at) VALUES (?, ?, ?, ?)',
   );
 
-  // System prompt stored only on first message of session
   if (isNewSession && args.system) {
     insert.run(args.session_id, 'system', args.system, now);
     history.push({ role: 'system', content: args.system });
@@ -88,15 +88,19 @@ export async function handleChat(
   history.push({ role: 'user', content: args.message });
 
   try {
+    const body: Record<string, unknown> = {
+      model: args.model,
+      messages: history,
+      temperature: args.temperature ?? 0.7,
+      max_tokens: args.max_tokens ?? 2048,
+    };
+    if (args.draft_model) body.draft_model = args.draft_model;
+    if (args.ttl !== undefined) body.ttl = args.ttl;
+
     const res = await fetch(`${LM_STUDIO_URL}/v1/chat/completions`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({
-        model: args.model,
-        messages: history,
-        temperature: args.temperature ?? 0.7,
-        max_tokens: args.max_tokens ?? 2048,
-      }),
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(120_000),
     });
 
@@ -107,12 +111,20 @@ export async function handleChat(
       };
     }
 
-    const data = (await res.json()) as { choices: { message: { content: string } }[] };
-    const reply = data.choices[0]?.message?.content ?? '(empty response)';
+    const data = (await res.json()) as {
+      choices: { message: { content: string; reasoning_content?: string } }[];
+    };
+    const message = data.choices[0]?.message;
+    const reply = message?.content ?? '(empty response)';
+    const reasoning = message?.reasoning_content;
 
     insert.run(args.session_id, 'assistant', reply, now + 2);
 
-    return { content: [{ type: 'text', text: reply }] };
+    const output = reasoning
+      ? `${reply}\n\n---\nReasoning: ${reasoning}`
+      : reply;
+
+    return { content: [{ type: 'text', text: output }] };
   } catch (error) {
     return {
       content: [

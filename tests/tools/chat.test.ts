@@ -165,4 +165,110 @@ describe('handleChat', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('ECONNREFUSED');
   });
+
+  it('passes draft_model and ttl to request body when provided', async () => {
+    const db = makeDb();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+        { status: 200 },
+      ),
+    );
+
+    await handleChat(
+      {
+        session_id: 's-spec',
+        action: 'send',
+        message: 'Hi',
+        model: 'qwen-7b',
+        draft_model: 'qwen-0.5b',
+        ttl: 600,
+      },
+      db,
+    );
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+    expect(body.draft_model).toBe('qwen-0.5b');
+    expect(body.ttl).toBe(600);
+  });
+
+  it('omits draft_model and ttl from body when not provided', async () => {
+    const db = makeDb();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+        { status: 200 },
+      ),
+    );
+
+    await handleChat(
+      { session_id: 's-plain', action: 'send', message: 'Hi', model: 'm' },
+      db,
+    );
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+    expect(body.draft_model).toBeUndefined();
+    expect(body.ttl).toBeUndefined();
+  });
+
+  it('appends reasoning_content as a separator block when present in response', async () => {
+    const db = makeDb();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: 'Final answer: 42',
+                reasoning_content: 'I considered multiple approaches',
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await handleChat(
+      { session_id: 's-reason', action: 'send', message: 'Q', model: 'deepseek-r1' },
+      db,
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toContain('Final answer: 42');
+    expect(result.content[0].text).toContain('---');
+    expect(result.content[0].text).toContain('Reasoning:');
+    expect(result.content[0].text).toContain('I considered multiple approaches');
+  });
+
+  it('stores only the visible assistant content (not reasoning) in session history', async () => {
+    const db = makeDb();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: 'Visible reply',
+                reasoning_content: 'Hidden thinking',
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await handleChat(
+      { session_id: 's-store', action: 'send', message: 'Q', model: 'm' },
+      db,
+    );
+
+    const rows = db
+      .prepare("SELECT content FROM sessions WHERE id = ? AND role = 'assistant'")
+      .all('s-store') as { content: string }[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].content).toBe('Visible reply');
+    expect(rows[0].content).not.toContain('Hidden thinking');
+  });
 });
