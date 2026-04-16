@@ -13,3 +13,11 @@ export function authHeaders(): Record<string, string> {
   if (LM_STUDIO_API_KEY) headers['Authorization'] = `Bearer ${LM_STUDIO_API_KEY}`;
   return headers;
 }
+
+export function openaiUrl(path: string): string {
+  return `${LM_STUDIO_URL}/v1/${path.replace(/^\//, '')}`;
+}
+
+export function nativeUrl(path: string): string {
+  return `${LM_STUDIO_URL}/api/v1/${path.replace(/^\//, '')}`;
+}
