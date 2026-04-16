@@ -241,6 +241,80 @@ describe('handleChat', () => {
     expect(result.content[0].text).toContain('I considered multiple approaches');
   });
 
+  it('does not persist the user message when fetch throws a network error', async () => {
+    const db = makeDb();
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+    const result = await handleChat(
+      { session_id: 'corrupt-1', action: 'send', message: 'Hi', model: 'm', system: 'Sys' },
+      db,
+    );
+
+    expect(result.isError).toBe(true);
+    const rows = db.prepare('SELECT role FROM sessions WHERE id = ?').all('corrupt-1');
+    expect(rows).toHaveLength(0);
+  });
+
+  it('does not persist the user message when LM Studio returns non-OK', async () => {
+    const db = makeDb();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response('', { status: 503, statusText: 'Service Unavailable' }),
+    );
+
+    const result = await handleChat(
+      { session_id: 'corrupt-2', action: 'send', message: 'Hi', model: 'm', system: 'Sys' },
+      db,
+    );
+
+    expect(result.isError).toBe(true);
+    const rows = db.prepare('SELECT role FROM sessions WHERE id = ?').all('corrupt-2');
+    expect(rows).toHaveLength(0);
+  });
+
+  it('recovers cleanly — a failed send leaves no trace, next send is still a new session', async () => {
+    const db = makeDb();
+    vi.spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: 'Welcome!' } }] }),
+          { status: 200 },
+        ),
+      );
+
+    await handleChat(
+      { session_id: 'recover', action: 'send', message: 'Lost', model: 'm', system: 'Sys' },
+      db,
+    );
+    await handleChat(
+      { session_id: 'recover', action: 'send', message: 'Kept', model: 'm', system: 'Sys' },
+      db,
+    );
+
+    const rows = db
+      .prepare('SELECT role, content FROM sessions WHERE id = ? ORDER BY rowid ASC')
+      .all('recover') as { role: string; content: string }[];
+    expect(rows.map((r) => r.role)).toEqual(['system', 'user', 'assistant']);
+    expect(rows.find((r) => r.role === 'user')?.content).toBe('Kept');
+  });
+
+  it('returns error when LM Studio response has no choices', async () => {
+    const db = makeDb();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ choices: [] }), { status: 200 }),
+    );
+
+    const result = await handleChat(
+      { session_id: 'empty', action: 'send', message: 'Hi', model: 'm' },
+      db,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('no choices');
+    const rows = db.prepare('SELECT role FROM sessions WHERE id = ?').all('empty');
+    expect(rows).toHaveLength(0);
+  });
+
   it('stores only the visible assistant content (not reasoning) in session history', async () => {
     const db = makeDb();
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(

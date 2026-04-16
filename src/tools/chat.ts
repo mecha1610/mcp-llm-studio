@@ -74,23 +74,18 @@ export async function handleChat(
     .all(args.session_id) as Row[];
 
   const isNewSession = history.length === 0;
-  const now = Date.now();
-  const insert = database.prepare(
-    'INSERT INTO sessions (id, role, content, created_at) VALUES (?, ?, ?, ?)',
-  );
+  const userMessage = args.message;
 
+  const messages: Row[] = [...history];
   if (isNewSession && args.system) {
-    insert.run(args.session_id, 'system', args.system, now);
-    history.push({ role: 'system', content: args.system });
+    messages.push({ role: 'system', content: args.system });
   }
-
-  insert.run(args.session_id, 'user', args.message, now + 1);
-  history.push({ role: 'user', content: args.message });
+  messages.push({ role: 'user', content: userMessage });
 
   try {
     const body: Record<string, unknown> = {
       model: args.model,
-      messages: history,
+      messages,
       temperature: args.temperature ?? 0.7,
       max_tokens: args.max_tokens ?? 2048,
     };
@@ -112,13 +107,33 @@ export async function handleChat(
     }
 
     const data = (await res.json()) as {
-      choices: { message: { content: string; reasoning_content?: string } }[];
+      choices?: { message: { content: string; reasoning_content?: string } }[];
     };
-    const message = data.choices[0]?.message;
+    if (!data.choices?.length) {
+      return {
+        content: [{ type: 'text', text: 'LM Studio returned no choices in response' }],
+        isError: true,
+      };
+    }
+    const message = data.choices[0].message;
     const reply = message?.content ?? '(empty response)';
     const reasoning = message?.reasoning_content;
 
-    insert.run(args.session_id, 'assistant', reply, now + 2);
+    // Persist the full turn atomically only after a confirmed response.
+    // If the fetch throws or returns non-OK, nothing is written — no orphan
+    // user row can corrupt the history on the next call.
+    const now = Date.now();
+    const insert = database.prepare(
+      'INSERT INTO sessions (id, role, content, created_at) VALUES (?, ?, ?, ?)',
+    );
+    const persistTurn = database.transaction(() => {
+      if (isNewSession && args.system) {
+        insert.run(args.session_id, 'system', args.system, now);
+      }
+      insert.run(args.session_id, 'user', userMessage, now + 1);
+      insert.run(args.session_id, 'assistant', reply, now + 2);
+    });
+    persistTurn();
 
     const output = reasoning
       ? `${reply}\n\n---\nReasoning: ${reasoning}`
