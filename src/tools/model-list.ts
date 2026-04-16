@@ -1,10 +1,10 @@
-import { LM_STUDIO_URL, authHeaders } from '../config.js';
+import { openaiUrl, authHeaders } from '../config.js';
 
 type ToolResult = { content: { type: 'text'; text: string }[]; isError?: true };
 
-export async function handleListModels(): Promise<ToolResult> {
+export async function handleModelList(): Promise<ToolResult> {
   try {
-    const res = await fetch(`${LM_STUDIO_URL}/v1/models`, {
+    const res = await fetch(openaiUrl('models'), {
       headers: authHeaders(),
       signal: AbortSignal.timeout(30_000),
     });
@@ -18,7 +18,7 @@ export async function handleListModels(): Promise<ToolResult> {
     const models = data.data.map((m) => m.id);
     return {
       content: [
-        { type: 'text', text: `Available models:\n${models.map((m) => `- ${m}`).join('\n')}` },
+        { type: 'text', text: `Loaded models:\n${models.map((m) => `- ${m}`).join('\n')}` },
       ],
     };
   } catch (error) {
