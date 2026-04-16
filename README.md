@@ -51,6 +51,8 @@ That's it. Start Claude Code and ask it to `list loaded models` — it should hi
 
 Copy `.env.example` → `.env` for local overrides.
 
+> **Security note on `MCP_SESSIONS_DB`** — this SQLite file stores the raw text of every `chat` turn, including anything passed as `system`. Treat its path as a privileged location: keep it under `$HOME` (default), do not put it on a shared/world-readable volume, and do not point it at a path you do not control. The server creates the parent directory if missing and will happily write to any path the server process can reach.
+
 ## Tools
 
 ### Model management — native `/api/v1/*`
@@ -111,7 +113,7 @@ src/
     ask.ts              POST /api/v1/chat (store: false) — reasoning + stats
     chat.ts             POST /v1/chat/completions + better-sqlite3 session history
     embed.ts            POST /v1/embeddings
-tests/tools/*.test.ts   vitest, 45 tests, fetch mocked
+tests/tools/*.test.ts   vitest, fetch mocked
 ```
 
 ## License
