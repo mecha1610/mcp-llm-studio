@@ -76,7 +76,7 @@ function formatAskOutput(text: string, reasoning: string, stats?: Stats): string
       parts.push(`TTFT ${stats.time_to_first_token_seconds.toFixed(1)}s`);
     if (stats.input_tokens !== undefined && stats.total_output_tokens !== undefined)
       parts.push(`${stats.input_tokens} in → ${stats.total_output_tokens} out`);
-    if (parts.length) out += `\n\n📊 ${parts.join(' | ')}`;
+    if (parts.length) out += `\n\n---\nStats: ${parts.join(' | ')}`;
   }
   return out;
 }

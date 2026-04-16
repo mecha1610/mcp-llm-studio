@@ -48,10 +48,8 @@ export async function handleChat(
     draft_model?: string;
     ttl?: number;
   },
-  db?: Database.Database,
+  database: Database.Database,
 ): Promise<ToolResult> {
-  const database = db ?? openProductionDb();
-
   if (args.action === 'reset') {
     const info = database
       .prepare('DELETE FROM sessions WHERE id = ?')

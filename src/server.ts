@@ -2,6 +2,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { VERSION } from './config.js';
 import { handleModelList } from './tools/model-list.js';
 import { handleModelLoad } from './tools/model-load.js';
 import { handleModelUnload } from './tools/model-unload.js';
@@ -11,7 +12,7 @@ import { handleChat, openProductionDb } from './tools/chat.js';
 import { handleEmbed } from './tools/embed.js';
 
 const server = new McpServer(
-  { name: 'llm-studio', version: '3.0.0' },
+  { name: 'llm-studio', version: VERSION },
   {
     instructions:
       'MCP server for LM Studio (v3 hybrid native + OpenAI-compat). Tools: model_list/load/unload/download for lifecycle management, ask (native API with reasoning and stats), chat (multi-turn with SQLite persistence), embed (text embeddings).',
@@ -137,7 +138,7 @@ server.registerTool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('LLM Studio MCP Server v3.0.0 running on stdio');
+  console.error(`LLM Studio MCP Server v${VERSION} running on stdio`);
 }
 
 main().catch((error) => {

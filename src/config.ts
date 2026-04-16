@@ -12,6 +12,8 @@ export const TIMEOUT_DEFAULT_MS = 30_000;
 export const TIMEOUT_INFERENCE_MS = 120_000;
 export const TIMEOUT_LOAD_MS = 300_000;
 
+export const VERSION = '3.0.0';
+
 export function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (LM_STUDIO_API_KEY) headers['Authorization'] = `Bearer ${LM_STUDIO_API_KEY}`;

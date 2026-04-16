@@ -68,7 +68,7 @@ export async function handleModelDownload(
     };
 
     while (!controller.signal.aborted) {
-      await new Promise((r) => setTimeout(r, pollMs));
+      await abortableSleep(pollMs, controller.signal);
       if (controller.signal.aborted) break;
       let pollRes: Response;
       try {
@@ -126,4 +126,19 @@ export async function handleModelDownload(
   } catch (error) {
     return errorResult(error);
   }
+}
+
+function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal.aborted) return resolve();
+    const t = setTimeout(resolve, ms);
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(t);
+        resolve();
+      },
+      { once: true },
+    );
+  });
 }
