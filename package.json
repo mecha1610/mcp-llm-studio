@@ -1,6 +1,6 @@
 {
   "name": "mcp-llm-studio",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "MCP server for LM Studio multi-model hub",
   "type": "module",
   "main": "dist/server.js",
