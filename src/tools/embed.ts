@@ -1,24 +1,18 @@
-import { LM_STUDIO_URL, authHeaders } from '../config.js';
-
-type ToolResult = { content: { type: 'text'; text: string }[]; isError?: true };
+import { openaiUrl, authHeaders, TIMEOUT_DEFAULT_MS } from '../config.js';
+import { ToolResult, errorResult, httpErrorResult } from '../types.js';
 
 export async function handleEmbed(args: {
   model: string;
   input: string | string[];
 }): Promise<ToolResult> {
   try {
-    const res = await fetch(`${LM_STUDIO_URL}/v1/embeddings`, {
+    const res = await fetch(openaiUrl('embeddings'), {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({ model: args.model, input: args.input }),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(TIMEOUT_DEFAULT_MS),
     });
-    if (!res.ok) {
-      return {
-        content: [{ type: 'text', text: `LM Studio error: ${res.status} ${res.statusText}` }],
-        isError: true,
-      };
-    }
+    if (!res.ok) return httpErrorResult(res);
     const data = (await res.json()) as { data: { embedding: number[]; index: number }[] };
     const summary = data.data
       .map((d) => `[${d.index}] ${d.embedding.length} dimensions`)
@@ -30,14 +24,6 @@ export async function handleEmbed(args: {
       ],
     };
   } catch (error) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Failed: ${error instanceof Error ? error.message : String(error)}`,
-        },
-      ],
-      isError: true,
-    };
+    return errorResult(error);
   }
 }

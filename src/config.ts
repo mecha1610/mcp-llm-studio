@@ -8,6 +8,10 @@ export const LM_STUDIO_API_KEY = process.env.LM_STUDIO_API_KEY ?? '';
 export const MCP_SESSIONS_DB =
   process.env.MCP_SESSIONS_DB ?? path.join(os.homedir(), '.mcp-llm-studio', 'sessions.db');
 
+export const TIMEOUT_DEFAULT_MS = 30_000;
+export const TIMEOUT_INFERENCE_MS = 120_000;
+export const TIMEOUT_LOAD_MS = 300_000;
+
 export function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (LM_STUDIO_API_KEY) headers['Authorization'] = `Bearer ${LM_STUDIO_API_KEY}`;

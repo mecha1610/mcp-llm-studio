@@ -1,16 +1,20 @@
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
-import { LM_STUDIO_URL, MCP_SESSIONS_DB, authHeaders } from '../config.js';
-
-type ToolResult = { content: { type: 'text'; text: string }[]; isError?: true };
+import {
+  openaiUrl,
+  MCP_SESSIONS_DB,
+  authHeaders,
+  TIMEOUT_INFERENCE_MS,
+} from '../config.js';
+import { ToolResult, errorResult, httpErrorResult } from '../types.js';
 
 interface Row {
   role: string;
   content: string;
 }
 
-function ensureSchema(db: Database.Database): void {
+export function ensureSchema(db: Database.Database): void {
   db.prepare(
     `CREATE TABLE IF NOT EXISTS sessions (
       id TEXT NOT NULL,
@@ -92,19 +96,14 @@ export async function handleChat(
     if (args.draft_model) body.draft_model = args.draft_model;
     if (args.ttl !== undefined) body.ttl = args.ttl;
 
-    const res = await fetch(`${LM_STUDIO_URL}/v1/chat/completions`, {
+    const res = await fetch(openaiUrl('chat/completions'), {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(120_000),
+      signal: AbortSignal.timeout(TIMEOUT_INFERENCE_MS),
     });
 
-    if (!res.ok) {
-      return {
-        content: [{ type: 'text', text: `LM Studio error: ${res.status} ${res.statusText}` }],
-        isError: true,
-      };
-    }
+    if (!res.ok) return httpErrorResult(res);
 
     const data = (await res.json()) as {
       choices?: { message: { content: string; reasoning_content?: string } }[];
@@ -141,14 +140,6 @@ export async function handleChat(
 
     return { content: [{ type: 'text', text: output }] };
   } catch (error) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Failed: ${error instanceof Error ? error.message : String(error)}`,
-        },
-      ],
-      isError: true,
-    };
+    return errorResult(error);
   }
 }

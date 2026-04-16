@@ -1,6 +1,5 @@
-import { nativeUrl, authHeaders } from '../config.js';
-
-type ToolResult = { content: { type: 'text'; text: string }[]; isError?: true };
+import { nativeUrl, authHeaders, TIMEOUT_DEFAULT_MS } from '../config.js';
+import { ToolResult, errorResult, httpErrorResult } from '../types.js';
 
 type StartResponse = {
   job_id?: string;
@@ -35,16 +34,9 @@ export async function handleModelDownload(
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(startBody),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(TIMEOUT_DEFAULT_MS),
     });
-    if (!startRes.ok) {
-      return {
-        content: [
-          { type: 'text', text: `LM Studio error: ${startRes.status} ${startRes.statusText}` },
-        ],
-        isError: true,
-      };
-    }
+    if (!startRes.ok) return httpErrorResult(startRes);
     const startData = (await startRes.json()) as StartResponse;
 
     if (startData.status === 'already_downloaded') {
@@ -90,12 +82,7 @@ export async function handleModelDownload(
       }
       if (!pollRes.ok) {
         clearTimeout(timeoutHandle);
-        return {
-          content: [
-            { type: 'text', text: `Poll error: ${pollRes.status} ${pollRes.statusText}` },
-          ],
-          isError: true,
-        };
+        return httpErrorResult(pollRes);
       }
       lastStatus = (await pollRes.json()) as PollResponse;
 
@@ -137,14 +124,6 @@ export async function handleModelDownload(
       ],
     };
   } catch (error) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Failed: ${error instanceof Error ? error.message : String(error)}`,
-        },
-      ],
-      isError: true,
-    };
+    return errorResult(error);
   }
 }

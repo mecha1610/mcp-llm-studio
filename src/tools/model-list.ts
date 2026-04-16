@@ -1,19 +1,13 @@
-import { openaiUrl, authHeaders } from '../config.js';
-
-type ToolResult = { content: { type: 'text'; text: string }[]; isError?: true };
+import { openaiUrl, authHeaders, TIMEOUT_DEFAULT_MS } from '../config.js';
+import { ToolResult, errorResult, httpErrorResult } from '../types.js';
 
 export async function handleModelList(): Promise<ToolResult> {
   try {
     const res = await fetch(openaiUrl('models'), {
       headers: authHeaders(),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(TIMEOUT_DEFAULT_MS),
     });
-    if (!res.ok) {
-      return {
-        content: [{ type: 'text', text: `LM Studio error: ${res.status} ${res.statusText}` }],
-        isError: true,
-      };
-    }
+    if (!res.ok) return httpErrorResult(res);
     const data = (await res.json()) as { data: { id: string }[] };
     const models = data.data.map((m) => m.id);
     return {
@@ -22,14 +16,6 @@ export async function handleModelList(): Promise<ToolResult> {
       ],
     };
   } catch (error) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Failed to reach LM Studio: ${error instanceof Error ? error.message : String(error)}`,
-        },
-      ],
-      isError: true,
-    };
+    return errorResult(error);
   }
 }

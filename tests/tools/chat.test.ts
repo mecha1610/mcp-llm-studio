@@ -1,18 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Database from 'better-sqlite3';
-import { handleChat } from '../../src/tools/chat.js';
+import { handleChat, ensureSchema } from '../../src/tools/chat.js';
 
 function makeDb() {
   const db = new Database(':memory:');
-  db.prepare(
-    `CREATE TABLE IF NOT EXISTS sessions (
-      id TEXT NOT NULL,
-      role TEXT NOT NULL,
-      content TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    )`,
-  ).run();
-  db.prepare(`CREATE INDEX IF NOT EXISTS idx_sessions_id ON sessions(id)`).run();
+  ensureSchema(db);
   return db;
 }
 

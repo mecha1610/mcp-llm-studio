@@ -1,6 +1,5 @@
-import { nativeUrl, authHeaders } from '../config.js';
-
-type ToolResult = { content: { type: 'text'; text: string }[]; isError?: true };
+import { nativeUrl, authHeaders, TIMEOUT_INFERENCE_MS } from '../config.js';
+import { ToolResult, errorResult, httpErrorResult } from '../types.js';
 
 type Stats = {
   tokens_per_second?: number;
@@ -37,14 +36,9 @@ export async function handleAsk(args: {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(120_000),
+      signal: AbortSignal.timeout(TIMEOUT_INFERENCE_MS),
     });
-    if (!res.ok) {
-      return {
-        content: [{ type: 'text', text: `LM Studio error: ${res.status} ${res.statusText}` }],
-        isError: true,
-      };
-    }
+    if (!res.ok) return httpErrorResult(res);
 
     if (args.stream) {
       const { text, reasoning, stats } = await consumeNativeSSE(res);
@@ -67,15 +61,7 @@ export async function handleAsk(args: {
       content: [{ type: 'text', text: formatAskOutput(text, reasoning, data.stats) }],
     };
   } catch (error) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Failed: ${error instanceof Error ? error.message : String(error)}`,
-        },
-      ],
-      isError: true,
-    };
+    return errorResult(error);
   }
 }
 

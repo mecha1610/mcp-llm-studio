@@ -1,6 +1,5 @@
-import { nativeUrl, authHeaders } from '../config.js';
-
-type ToolResult = { content: { type: 'text'; text: string }[]; isError?: true };
+import { nativeUrl, authHeaders, TIMEOUT_DEFAULT_MS } from '../config.js';
+import { ToolResult, errorResult, httpErrorResult } from '../types.js';
 
 export async function handleModelUnload(args: {
   model: string;
@@ -10,25 +9,12 @@ export async function handleModelUnload(args: {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({ instance_id: args.model }),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(TIMEOUT_DEFAULT_MS),
     });
-    if (!res.ok) {
-      return {
-        content: [{ type: 'text', text: `LM Studio error: ${res.status} ${res.statusText}` }],
-        isError: true,
-      };
-    }
+    if (!res.ok) return httpErrorResult(res);
     const data = (await res.json()) as { instance_id: string };
     return { content: [{ type: 'text', text: `Unloaded ${data.instance_id}` }] };
   } catch (error) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Failed: ${error instanceof Error ? error.message : String(error)}`,
-        },
-      ],
-      isError: true,
-    };
+    return errorResult(error);
   }
 }
