@@ -139,6 +139,30 @@ describe('handleAsk (native API)', () => {
     expect(result.content[0].text).toContain('30.0 tok/s');
   });
 
+  it('reassembles SSE events split across chunk boundaries', async () => {
+    // A single `data:` event is intentionally split mid-JSON across two chunks.
+    // Without a carry-forward buffer, both halves fail to parse and content
+    // is silently dropped.
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"type":"message.del'));
+        controller.enqueue(encoder.encode('ta","content":"hello"}\n\n'));
+        controller.enqueue(encoder.encode('data: {"type":"message.delta","content":" wo'));
+        controller.enqueue(encoder.encode('rld"}\n\ndata: {"type":"chat.end","result":{"stats":{"tokens_per_second":10}}}\n\n'));
+        controller.close();
+      },
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(stream, { status: 200 }),
+    );
+
+    const result = await handleAsk({ model: 'm', prompt: 'Hi', stream: true });
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toContain('hello world');
+    expect(result.content[0].text).toContain('10.0 tok/s');
+  });
+
   it('returns error on non-OK response', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response('not found', { status: 404, statusText: 'Not Found' }),

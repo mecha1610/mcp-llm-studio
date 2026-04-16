@@ -104,30 +104,41 @@ async function consumeNativeSSE(
   let text = '';
   let reasoning = '';
   let stats: Stats | undefined;
+  let buffer = '';
+
+  const handleLine = (line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('data:')) return;
+    const payload = trimmed.slice(5).trim();
+    if (!payload) return;
+    try {
+      const event = JSON.parse(payload) as {
+        type?: string;
+        content?: string;
+        result?: { stats?: Stats };
+      };
+      if (event.type === 'message.delta' && event.content) text += event.content;
+      else if (event.type === 'reasoning.delta' && event.content) reasoning += event.content;
+      else if (event.type === 'chat.end') stats = event.result?.stats;
+    } catch {
+      // malformed SSE line — skip
+    }
+  };
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    for (const line of chunk.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith('data:')) continue;
-      const payload = trimmed.slice(5).trim();
-      if (!payload) continue;
-      try {
-        const event = JSON.parse(payload) as {
-          type?: string;
-          content?: string;
-          result?: { stats?: Stats };
-        };
-        if (event.type === 'message.delta' && event.content) text += event.content;
-        else if (event.type === 'reasoning.delta' && event.content) reasoning += event.content;
-        else if (event.type === 'chat.end') stats = event.result?.stats;
-      } catch {
-        // malformed SSE line — skip
-      }
-    }
+    buffer += decoder.decode(value, { stream: true });
+    // Split on CRLF or LF. Keep the trailing (possibly incomplete) line
+    // in the buffer so an event split across chunks is reassembled.
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? '';
+    for (const line of lines) handleLine(line);
   }
+
+  // Flush any final decoded bytes and leftover line.
+  buffer += decoder.decode();
+  if (buffer.length > 0) handleLine(buffer);
 
   return { text, reasoning, stats };
 }
