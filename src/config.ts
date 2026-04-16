@@ -22,6 +22,12 @@ export const MAX_SSE_BYTES = 10 * 1024 * 1024;
 // window and inflate request bodies.
 export const MAX_HISTORY_TURNS = 100;
 
+// Input bounds enforced at the MCP boundary (Zod). Values are generous but
+// prevent a single oversized argument from allocating hundreds of MB.
+export const MAX_ID_LEN = 256;
+export const MAX_PROMPT_LEN = 1_048_576; // 1 MiB
+export const MAX_EMBED_INPUT_ITEMS = 1024;
+
 export const VERSION = '3.0.0';
 
 export function authHeaders(): Record<string, string> {

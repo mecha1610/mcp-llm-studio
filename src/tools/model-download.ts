@@ -56,6 +56,16 @@ export async function handleModelDownload(
         isError: true,
       };
     }
+    // We interpolate job_id into the polling URL path. LM Studio is trusted
+    // today, but a malformed/adversarial job_id could contain path separators
+    // or URL control characters that escape the intended endpoint. Reject
+    // anything that isn't a plain opaque identifier.
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(startData.job_id)) {
+      return {
+        content: [{ type: 'text', text: `Unexpected response: malformed job_id` }],
+        isError: true,
+      };
+    }
 
     const controller = new AbortController();
     const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);

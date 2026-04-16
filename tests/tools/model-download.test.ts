@@ -179,6 +179,26 @@ describe('handleModelDownload', () => {
     expect(result.content[0].text).toContain('ECONNREFUSED');
   });
 
+  it('rejects a malformed job_id containing URL control characters', async () => {
+    mockFetchSequence([
+      new Response(
+        JSON.stringify({
+          job_id: '../admin/evict',
+          status: 'downloading',
+          total_size_bytes: 100,
+        }),
+        { status: 200 },
+      ),
+    ]);
+
+    const result = await handleModelDownload(
+      { model: 'm' },
+      { pollIntervalMs: 1, timeoutMs: 1000 },
+    );
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('malformed job_id');
+  });
+
   it('returns error when poll request hits a network failure', async () => {
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(
