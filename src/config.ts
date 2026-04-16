@@ -12,6 +12,16 @@ export const TIMEOUT_DEFAULT_MS = 30_000;
 export const TIMEOUT_INFERENCE_MS = 120_000;
 export const TIMEOUT_LOAD_MS = 300_000;
 
+// Cap on the bytes we will accumulate from a single SSE response. Prevents a
+// runaway server (or adversarial response) from forcing unbounded growth of
+// the text/reasoning/buffer strings in consumeNativeSSE.
+export const MAX_SSE_BYTES = 10 * 1024 * 1024;
+
+// Cap on the number of rows replayed into the LM Studio request for a chat
+// session. Without this, long sessions quietly blow the model's context
+// window and inflate request bodies.
+export const MAX_HISTORY_TURNS = 100;
+
 export const VERSION = '3.0.0';
 
 export function authHeaders(): Record<string, string> {

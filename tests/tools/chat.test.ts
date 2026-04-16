@@ -307,6 +307,88 @@ describe('handleChat', () => {
     expect(rows).toHaveLength(0);
   });
 
+  it('caps the non-system history sent to LM Studio at maxHistoryTurns, keeping the most recent rows and the system row', async () => {
+    const db = makeDb();
+
+    // Seed a session with a system row + 10 user/assistant rows.
+    const insert = db.prepare(
+      'INSERT INTO sessions (id, role, content, created_at) VALUES (?, ?, ?, ?)',
+    );
+    const now = Date.now();
+    insert.run('long', 'system', 'SYS', now);
+    for (let i = 0; i < 10; i++) {
+      insert.run('long', 'user', `u${i}`, now + i * 2 + 1);
+      insert.run('long', 'assistant', `a${i}`, now + i * 2 + 2);
+    }
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: 'newest reply' } }] }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await handleChat(
+      { session_id: 'long', action: 'send', message: 'new', model: 'm' },
+      db,
+      { maxHistoryTurns: 4 },
+    );
+    expect(result.isError).toBeUndefined();
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+    // Expect: [system] + 4 most-recent non-system rows + 1 new user = 6
+    expect(body.messages).toHaveLength(6);
+    expect(body.messages[0]).toEqual({ role: 'system', content: 'SYS' });
+    // Most recent 4 non-system rows are u8, a8, u9, a9 (in chronological order)
+    expect(body.messages.slice(1, 5).map((m: { content: string }) => m.content)).toEqual([
+      'u8',
+      'a8',
+      'u9',
+      'a9',
+    ]);
+    expect(body.messages[5]).toEqual({ role: 'user', content: 'new' });
+  });
+
+  it('treats a trimmed-but-non-empty session as NOT new (does not re-inject args.system)', async () => {
+    const db = makeDb();
+    const insert = db.prepare(
+      'INSERT INTO sessions (id, role, content, created_at) VALUES (?, ?, ?, ?)',
+    );
+    const now = Date.now();
+    // Session has rows but no stored system prompt.
+    insert.run('trimmed', 'user', 'old-u', now);
+    insert.run('trimmed', 'assistant', 'old-a', now + 1);
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+        { status: 200 },
+      ),
+    );
+
+    await handleChat(
+      {
+        session_id: 'trimmed',
+        action: 'send',
+        message: 'hi',
+        model: 'm',
+        system: 'late system (should be ignored)',
+      },
+      db,
+      { maxHistoryTurns: 1 },
+    );
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+    // No system role should appear — session is pre-existing, so args.system
+    // is ignored (consistent with the "system only on first send" rule).
+    expect(body.messages.some((m: { role: string }) => m.role === 'system')).toBe(false);
+    // Only the last 1 non-system row + the new user message.
+    expect(body.messages).toEqual([
+      { role: 'assistant', content: 'old-a' },
+      { role: 'user', content: 'hi' },
+    ]);
+  });
+
   it('stores only the visible assistant content (not reasoning) in session history', async () => {
     const db = makeDb();
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(

@@ -163,6 +163,35 @@ describe('handleAsk (native API)', () => {
     expect(result.content[0].text).toContain('10.0 tok/s');
   });
 
+  it('truncates and errors when SSE response exceeds the byte cap', async () => {
+    const encoder = new TextEncoder();
+    // Each chunk is ~1 KiB of padding hidden inside a valid SSE event. We
+    // set maxBytes below the sum so the third chunk trips the cap.
+    const pad = 'x'.repeat(1024);
+    const chunks = [
+      `data: {"type":"message.delta","content":"${pad}"}\n\n`,
+      `data: {"type":"message.delta","content":"${pad}"}\n\n`,
+      `data: {"type":"message.delta","content":"${pad}"}\n\n`,
+    ];
+    const stream = new ReadableStream({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+        controller.close();
+      },
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(stream, { status: 200 }),
+    );
+
+    const result = await handleAsk(
+      { model: 'm', prompt: 'Hi', stream: true },
+      { maxBytes: 2048 },
+    );
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('truncated');
+    expect(result.content[0].text).toContain('2048');
+  });
+
   it('returns error on non-OK response', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response('not found', { status: 404, statusText: 'Not Found' }),

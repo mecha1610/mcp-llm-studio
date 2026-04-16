@@ -6,6 +6,7 @@ import {
   MCP_SESSIONS_DB,
   authHeaders,
   TIMEOUT_INFERENCE_MS,
+  MAX_HISTORY_TURNS,
 } from '../config.js';
 import { ToolResult, errorResult, httpErrorResult } from '../types.js';
 
@@ -49,7 +50,9 @@ export async function handleChat(
     ttl?: number;
   },
   database: Database.Database,
+  options?: { maxHistoryTurns?: number },
 ): Promise<ToolResult> {
+  const maxHistoryTurns = options?.maxHistoryTurns ?? MAX_HISTORY_TURNS;
   if (args.action === 'reset') {
     const info = database
       .prepare('DELETE FROM sessions WHERE id = ?')
@@ -71,10 +74,30 @@ export async function handleChat(
     };
   }
 
-  const history = database
-    .prepare('SELECT role, content FROM sessions WHERE id = ? ORDER BY rowid ASC')
-    .all(args.session_id) as Row[];
+  // Preserve the (optional) system prompt at the head, then keep the most
+  // recent `maxHistoryTurns` non-system rows — oldest non-system turns are
+  // trimmed so a long-lived session cannot grow unbounded and blow the
+  // model's context window or inflate request bodies.
+  const systemRow = database
+    .prepare(
+      `SELECT role, content FROM sessions
+       WHERE id = ? AND role = 'system'
+       ORDER BY rowid ASC LIMIT 1`,
+    )
+    .get(args.session_id) as Row | undefined;
 
+  const recentRows = database
+    .prepare(
+      `SELECT role, content FROM (
+         SELECT role, content, rowid FROM sessions
+         WHERE id = ? AND role != 'system'
+         ORDER BY rowid DESC
+         LIMIT ?
+       ) ORDER BY rowid ASC`,
+    )
+    .all(args.session_id, maxHistoryTurns) as Row[];
+
+  const history: Row[] = systemRow ? [systemRow, ...recentRows] : recentRows;
   const isNewSession = history.length === 0;
   const userMessage = args.message;
 

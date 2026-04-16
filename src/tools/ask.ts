@@ -1,5 +1,12 @@
-import { nativeUrl, authHeaders, TIMEOUT_INFERENCE_MS } from '../config.js';
+import { nativeUrl, authHeaders, TIMEOUT_INFERENCE_MS, MAX_SSE_BYTES } from '../config.js';
 import { ToolResult, errorResult, httpErrorResult } from '../types.js';
+
+class SSETruncatedError extends Error {
+  constructor(public readonly limit: number) {
+    super(`SSE response exceeded ${limit} bytes and was truncated`);
+    this.name = 'SSETruncatedError';
+  }
+}
 
 type Stats = {
   tokens_per_second?: number;
@@ -9,16 +16,20 @@ type Stats = {
   reasoning_output_tokens?: number;
 };
 
-export async function handleAsk(args: {
-  model: string;
-  prompt: string;
-  system?: string;
-  temperature?: number;
-  max_tokens?: number;
-  reasoning?: 'off' | 'low' | 'medium' | 'high' | 'on';
-  context_length?: number;
-  stream?: boolean;
-}): Promise<ToolResult> {
+export async function handleAsk(
+  args: {
+    model: string;
+    prompt: string;
+    system?: string;
+    temperature?: number;
+    max_tokens?: number;
+    reasoning?: 'off' | 'low' | 'medium' | 'high' | 'on';
+    context_length?: number;
+    stream?: boolean;
+  },
+  options?: { maxBytes?: number },
+): Promise<ToolResult> {
+  const maxBytes = options?.maxBytes ?? MAX_SSE_BYTES;
   try {
     const body: Record<string, unknown> = {
       model: args.model,
@@ -41,7 +52,7 @@ export async function handleAsk(args: {
     if (!res.ok) return httpErrorResult(res);
 
     if (args.stream) {
-      const { text, reasoning, stats } = await consumeNativeSSE(res);
+      const { text, reasoning, stats } = await consumeNativeSSE(res, maxBytes);
       return { content: [{ type: 'text', text: formatAskOutput(text, reasoning, stats) }] };
     }
 
@@ -83,6 +94,7 @@ function formatAskOutput(text: string, reasoning: string, stats?: Stats): string
 
 async function consumeNativeSSE(
   res: Response,
+  maxBytes: number,
 ): Promise<{ text: string; reasoning: string; stats?: Stats }> {
   if (!res.body) return { text: '(empty stream)', reasoning: '' };
   const reader = res.body.getReader();
@@ -91,6 +103,9 @@ async function consumeNativeSSE(
   let reasoning = '';
   let stats: Stats | undefined;
   let buffer = '';
+  // Sum of bytes accumulated across text, reasoning, and the carry-forward
+  // buffer. We cap the total so a runaway stream cannot exhaust memory.
+  let totalBytes = 0;
 
   const handleLine = (line: string) => {
     const trimmed = line.trim();
@@ -111,15 +126,30 @@ async function consumeNativeSSE(
     }
   };
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    // Split on CRLF or LF. Keep the trailing (possibly incomplete) line
-    // in the buffer so an event split across chunks is reassembled.
-    const lines = buffer.split(/\r?\n/);
-    buffer = lines.pop() ?? '';
-    for (const line of lines) handleLine(line);
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        throw new SSETruncatedError(maxBytes);
+      }
+      buffer += decoder.decode(value, { stream: true });
+      // Split on CRLF or LF. Keep the trailing (possibly incomplete) line
+      // in the buffer so an event split across chunks is reassembled.
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() ?? '';
+      for (const line of lines) handleLine(line);
+    }
+  } finally {
+    // Release the lock even on the truncation path so the Response body is
+    // not left dangling.
+    try {
+      reader.releaseLock();
+    } catch {
+      // already released (e.g. after cancel) — ignore
+    }
   }
 
   // Flush any final decoded bytes and leftover line.
