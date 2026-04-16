@@ -7,7 +7,7 @@ A Model Context Protocol (MCP) server that acts as a multi-model hub, routing re
 ## Architecture
 
 ```
-Claude Code  <--stdio-->  mcp-llm-studio (Node.js)  <--HTTP-->  LM Studio API (192.168.10.56:1234)
+Claude Code  <--stdio-->  mcp-llm-studio (Node.js)  <--HTTP-->  LM Studio API (localhost:1234)
 ```
 
 - **Transport:** stdio (Claude Code launches the process directly)
@@ -49,7 +49,7 @@ Generates embeddings for text input.
 
 ## Configuration
 
-- `LM_STUDIO_URL` environment variable (default: `http://192.168.10.56:1234`)
+- `LM_STUDIO_URL` environment variable (default: `http://localhost:1234`)
 
 ## Project Structure
 

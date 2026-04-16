@@ -1,9 +1,34 @@
 {
   "name": "mcp-llm-studio",
   "version": "3.0.0",
-  "description": "MCP server for LM Studio multi-model hub",
+  "description": "MCP server bridging Claude Code (and other MCP clients) to a local LM Studio instance. Exposes model lifecycle (list/load/unload/download), single-turn inference with reasoning and stats, multi-turn chat with SQLite-persisted history, and embeddings.",
   "type": "module",
   "main": "dist/server.js",
+  "license": "MIT",
+  "author": "mecha1610",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mecha1610/mcp-llm-studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mecha1610/mcp-llm-studio/issues"
+  },
+  "homepage": "https://github.com/mecha1610/mcp-llm-studio#readme",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "lm-studio",
+    "claude",
+    "claude-code",
+    "llm",
+    "local-llm",
+    "ai"
+  ],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",

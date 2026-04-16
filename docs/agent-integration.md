@@ -12,8 +12,8 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 const transport = new StdioClientTransport({
   command: 'node',
-  args: ['/Users/thomas/Documents/GitHub/mcp-llm-studio/dist/server.js'],
-  env: { LM_STUDIO_URL: 'http://192.168.10.56:1234' },
+  args: ['/absolute/path/to/mcp-llm-studio/dist/server.js'],
+  env: { LM_STUDIO_URL: 'http://localhost:1234' },
 });
 
 const client = new Client({ name: 'my-agent', version: '1.0.0' }, { capabilities: {} });
@@ -54,7 +54,10 @@ await client.close();
 
 | Tool | Purpose |
 |------|---------|
-| `list_models` | List models loaded in LM Studio |
-| `ask` | Single-turn prompt, optional `stream: true` |
-| `chat` | Multi-turn with `session_id` and `action: send\|reset` |
+| `model_list` | List models loaded in LM Studio |
+| `model_load` | Load a model into VRAM (sync) |
+| `model_unload` | Unload a model from VRAM |
+| `model_download` | Download a model from catalog or HuggingFace (async polling) |
+| `ask` | Single-turn via native `/api/v1/chat`, returns text + reasoning + stats |
+| `chat` | Multi-turn with `session_id` and `action: send\|reset`, SQLite-backed |
 | `embed` | Generate embeddings via `/v1/embeddings` |

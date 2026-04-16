@@ -30,7 +30,7 @@ npm run test:coverage   # Run tests with coverage report
 
 ## Configuration
 
-- `LM_STUDIO_URL` — LM Studio base URL (default: `http://192.168.10.56:1234`)
+- `LM_STUDIO_URL` — LM Studio base URL (default: `http://localhost:1234`)
 - `LM_STUDIO_API_KEY` — optional Bearer token
 - `MCP_SESSIONS_DB` — SQLite DB path (default: `~/.mcp-llm-studio/sessions.db`)
 
@@ -44,6 +44,6 @@ Tests are in `tests/tools/*.test.ts` using vitest. They import real handlers fro
 
 ```bash
 claude mcp add llm-studio \
-  -e LM_STUDIO_URL=http://192.168.10.56:1234 \
-  -- node /Users/thomas/Documents/GitHub/mcp-llm-studio/dist/server.js
+  -e LM_STUDIO_URL=http://localhost:1234 \
+  -- node /absolute/path/to/mcp-llm-studio/dist/server.js
 ```

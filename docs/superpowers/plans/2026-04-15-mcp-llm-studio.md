@@ -108,7 +108,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // We test the fetch logic directly since MCP server integration
 // is handled by the SDK. We extract the core logic into testable functions.
 
-const LM_STUDIO_URL = 'http://192.168.10.56:1234';
+const LM_STUDIO_URL = 'http://localhost:1234';
 
 async function fetchModels(baseUrl: string): Promise<{ id: string }[]> {
   const res = await fetch(`${baseUrl}/v1/models`);
@@ -161,7 +161,7 @@ Expected: PASS (these are self-contained unit tests for the fetch logic)
 import { McpServer, StdioServerTransport } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 
-const LM_STUDIO_URL = process.env.LM_STUDIO_URL ?? 'http://192.168.10.56:1234';
+const LM_STUDIO_URL = process.env.LM_STUDIO_URL ?? 'http://localhost:1234';
 
 const server = new McpServer(
   { name: 'llm-studio', version: '1.0.0' },

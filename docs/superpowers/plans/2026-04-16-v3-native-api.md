@@ -27,7 +27,7 @@ import 'dotenv/config';
 import os from 'node:os';
 import path from 'node:path';
 
-export const LM_STUDIO_URL = process.env.LM_STUDIO_URL ?? 'http://192.168.10.56:1234';
+export const LM_STUDIO_URL = process.env.LM_STUDIO_URL ?? 'http://localhost:1234';
 export const LM_STUDIO_API_KEY = process.env.LM_STUDIO_API_KEY ?? '';
 export const MCP_SESSIONS_DB =
   process.env.MCP_SESSIONS_DB ?? path.join(os.homedir(), '.mcp-llm-studio', 'sessions.db');
@@ -1884,10 +1884,10 @@ Expected: prints `LLM Studio MCP Server v3.0.0 running on stdio` to stderr.
 
 - [ ] **Step 5: Live integration test against real LM Studio (manual, if available)**
 
-If LM Studio is running on `http://192.168.10.56:1234` with a model loaded, run this quick smoke test from a Node REPL or a scratch file to verify the native API actually works. This is optional but recommended before claiming v3 is done:
+If LM Studio is running on `http://localhost:1234` with a model loaded, run this quick smoke test from a Node REPL or a scratch file to verify the native API actually works. This is optional but recommended before claiming v3 is done:
 
 ```bash
-curl -s http://192.168.10.56:1234/api/v1/chat \
+curl -s http://localhost:1234/api/v1/chat \
   -H "Content-Type: application/json" \
   -d '{"model":"google/gemma-3-4b","input":"Say hello in one word","store":false,"max_output_tokens":20}' \
   | head -c 500

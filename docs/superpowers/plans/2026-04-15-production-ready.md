@@ -54,7 +54,7 @@ import 'dotenv/config';
 import os from 'node:os';
 import path from 'node:path';
 
-export const LM_STUDIO_URL = process.env.LM_STUDIO_URL ?? 'http://192.168.10.56:1234';
+export const LM_STUDIO_URL = process.env.LM_STUDIO_URL ?? 'http://localhost:1234';
 export const LM_STUDIO_API_KEY = process.env.LM_STUDIO_API_KEY ?? '';
 export const MCP_SESSIONS_DB =
   process.env.MCP_SESSIONS_DB ?? path.join(os.homedir(), '.mcp-llm-studio', 'sessions.db');
@@ -1056,7 +1056,7 @@ rm src/index.ts tests/index.test.ts
 Create `.env.example`:
 
 ```bash
-LM_STUDIO_URL=http://192.168.10.56:1234
+LM_STUDIO_URL=http://localhost:1234
 LM_STUDIO_API_KEY=          # optional Bearer token
 MCP_SESSIONS_DB=~/.mcp-llm-studio/sessions.db
 ```
@@ -1136,7 +1136,7 @@ git commit -m "ci: add GitHub Actions build + test workflow"
 
 ```bash
 claude mcp add llm-studio \
-  -e LM_STUDIO_URL=http://192.168.10.56:1234 \
+  -e LM_STUDIO_URL=http://localhost:1234 \
   -- node /Users/thomas/Documents/GitHub/mcp-llm-studio/dist/server.js
 ```
 
@@ -1182,7 +1182,7 @@ npm run test:coverage   # Run tests with coverage report
 
 ## Configuration
 
-- `LM_STUDIO_URL` — LM Studio base URL (default: `http://192.168.10.56:1234`)
+- `LM_STUDIO_URL` — LM Studio base URL (default: `http://localhost:1234`)
 - `LM_STUDIO_API_KEY` — optional Bearer token
 - `MCP_SESSIONS_DB` — SQLite DB path (default: `~/.mcp-llm-studio/sessions.db`)
 
@@ -1196,7 +1196,7 @@ Tests are in `tests/tools/*.test.ts` using vitest. They import real handlers fro
 
 ```bash
 claude mcp add llm-studio \
-  -e LM_STUDIO_URL=http://192.168.10.56:1234 \
+  -e LM_STUDIO_URL=http://localhost:1234 \
   -- node /Users/thomas/Documents/GitHub/mcp-llm-studio/dist/server.js
 ```
 ```
@@ -1233,7 +1233,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 const transport = new StdioClientTransport({
   command: 'node',
   args: ['/Users/thomas/Documents/GitHub/mcp-llm-studio/dist/server.js'],
-  env: { LM_STUDIO_URL: 'http://192.168.10.56:1234' },
+  env: { LM_STUDIO_URL: 'http://localhost:1234' },
 });
 
 const client = new Client({ name: 'my-agent', version: '1.0.0' }, { capabilities: {} });

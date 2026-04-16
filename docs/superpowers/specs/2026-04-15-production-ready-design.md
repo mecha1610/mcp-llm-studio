@@ -5,7 +5,7 @@
 
 ## Context
 
-`mcp-llm-studio` is a stdio MCP server that bridges Claude Code to a local LM Studio instance (Windows 11, Nvidia GPU, `192.168.10.56:1234`). Current state: single-file TypeScript, 3 tools (`list_models`, `ask`, `embed`), tests that duplicate logic instead of testing real code, not yet registered in Claude Code.
+`mcp-llm-studio` is a stdio MCP server that bridges Claude Code to a local LM Studio instance (Windows 11, Nvidia GPU, `localhost:1234`). Current state: single-file TypeScript, 3 tools (`list_models`, `ask`, `embed`), tests that duplicate logic instead of testing real code, not yet registered in Claude Code.
 
 ## Goals
 
@@ -102,7 +102,7 @@ Unchanged. Moved to `src/tools/embed.ts`, handler exported as `handleEmbed`.
 `.env.example`:
 
 ```bash
-LM_STUDIO_URL=http://192.168.10.56:1234
+LM_STUDIO_URL=http://localhost:1234
 LM_STUDIO_API_KEY=          # optional Bearer token
 MCP_SESSIONS_DB=~/.mcp-llm-studio/sessions.db
 ```
@@ -157,7 +157,7 @@ With env vars:
 
 ```bash
 claude mcp add llm-studio \
-  -e LM_STUDIO_URL=http://192.168.10.56:1234 \
+  -e LM_STUDIO_URL=http://localhost:1234 \
   -- node /Users/thomas/Documents/GitHub/mcp-llm-studio/dist/server.js
 ```
 
