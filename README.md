@@ -24,16 +24,22 @@ The server uses a **hybrid API surface**: LM Studio's native REST API (`/api/v1/
 
 ## Quick Start
 
+Register the server with Claude Code — no clone or build needed:
+
+```bash
+claude mcp add llm-studio \
+  -e LM_STUDIO_URL=http://localhost:1234 \
+  -- npx -y mcp-llm-studio
+```
+
+Or, if you want to run from source:
+
 ```bash
 git clone https://github.com/mecha1610/mcp-llm-studio.git
 cd mcp-llm-studio
 npm install
 npm run build
-```
 
-Register the server with Claude Code:
-
-```bash
 claude mcp add llm-studio \
   -e LM_STUDIO_URL=http://localhost:1234 \
   -- node "$(pwd)/dist/server.js"

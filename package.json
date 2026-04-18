@@ -4,6 +4,12 @@
   "description": "MCP server bridging Claude Code (and other MCP clients) to a local LM Studio instance. Exposes model lifecycle (list/load/unload/download), single-turn inference with reasoning and stats, multi-turn chat with SQLite-persisted history, and embeddings.",
   "type": "module",
   "main": "dist/server.js",
+  "bin": {
+    "mcp-llm-studio": "dist/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "license": "MIT",
   "author": "mecha1610",
   "repository": {
@@ -30,11 +36,12 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/server.js",
     "start": "node dist/server.js",
     "dev": "tsc --watch",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
