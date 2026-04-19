@@ -7,14 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-04-19
+
 ### Added
 - `bin` entry for `npx -y mcp-llm-studio` install flow.
 - `engines.node >= 20` constraint.
 - `prepublishOnly` script running build and tests before publish.
+- `CHANGELOG.md`, `SECURITY.md`, and Dependabot config for public-repo hygiene.
+- GitHub Actions workflow to publish to npm automatically on `v*` tag push.
 
 ### Changed
 - Build now marks `dist/server.js` executable (`chmod +x`).
 - README Quick Start leads with `npx` install.
+- `CLAUDE.md` refreshed with `npx` registration and a Gotchas section covering
+  hybrid-API rationale, chat session semantics, and centralized input bounds.
 
 ## [3.0.0] - 2026-04-16
 
@@ -40,5 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Documented that `MCP_SESSIONS_DB` stores raw chat turns — treat as privileged.
 
-[Unreleased]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/mecha1610/mcp-llm-studio/releases/tag/v3.0.0
