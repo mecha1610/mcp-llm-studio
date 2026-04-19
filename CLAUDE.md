@@ -9,12 +9,18 @@ An MCP (Model Context Protocol) server that bridges Claude Code to local LM Stud
 ## Commands
 
 ```bash
-npm run build           # Compile TypeScript → dist/
+npm run build           # Compile TypeScript → dist/ (also chmods dist/server.js)
 npm run dev             # Watch mode compilation
 npm run start           # Run the compiled server (stdio transport)
 npm run test            # Run tests with vitest
 npm run test:coverage   # Run tests with coverage report
 ```
+
+`prepublishOnly` runs `build` + `test` automatically before `npm publish`.
+Node ≥ 20 is required (`engines` in package.json).
+
+Commits follow conventional commits: `type(scope): description`
+(`feat`, `fix`, `chore`, `docs`, `refactor`, `ci`).
 
 ## Architecture
 
@@ -42,8 +48,34 @@ Tests are in `tests/tools/*.test.ts` using vitest. They import real handlers fro
 
 ## Registration
 
+Preferred (no clone needed, uses the published npm package):
+
+```bash
+claude mcp add llm-studio \
+  -e LM_STUDIO_URL=http://localhost:1234 \
+  -- npx -y mcp-llm-studio
+```
+
+From a local build:
+
 ```bash
 claude mcp add llm-studio \
   -e LM_STUDIO_URL=http://localhost:1234 \
   -- node /absolute/path/to/mcp-llm-studio/dist/server.js
 ```
+
+## Gotchas
+
+- **Hybrid API is intentional.** `chat` uses OpenAI-compat `/v1/chat/completions`
+  because LM Studio's native `/api/v1/chat` cannot replay prior assistant
+  messages. Do not "unify" them without revisiting this.
+- **`system` in `chat` applies only on the first turn of a new session.**
+  Changing `system` on a later turn is silently ignored.
+- **`chat` handler accepts an optional `db` param** for test injection
+  (`:memory:` SQLite). Keep this signature stable — all chat tests rely on it.
+- **Build marks `dist/server.js` executable** (`chmod +x` in the build script).
+  Required for the `bin` entry (`npx mcp-llm-studio`) to work. Don't drop it.
+- **Input/response bounds are centralized in `src/config.ts`:**
+  `MAX_PROMPT_LEN` (1 MiB), `MAX_ID_LEN` (256), `MAX_EMBED_INPUT_ITEMS` (1024),
+  `MAX_SSE_BYTES` (10 MiB), `MAX_HISTORY_TURNS` (100). New tools should reuse
+  these rather than define their own.
