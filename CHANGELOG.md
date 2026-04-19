@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.1] - 2026-04-18
+
+### Changed
+- `httpErrorResult` now extracts the response body (JSON `error.message` / `message`
+  or text snippet) so LM Studio errors like "Model not loaded" surface to callers
+  instead of being swallowed behind a bare status line.
+- `model_download` arg validation now uses `MAX_URL_LEN` (2048) instead of the
+  prompt-sized cap, rejecting pathological URLs earlier at the Zod boundary.
+
+### Added
+- SSE idle timeout in `ask`: if no chunk arrives within `SSE_IDLE_TIMEOUT_MS`
+  (60s) the reader is cancelled and a clear error is returned, so a hung LM Studio
+  stream can no longer block the tool indefinitely.
+- Byte-level history cap in `chat` (`MAX_HISTORY_BYTES`, 10 MiB): oldest
+  non-system rows are dropped until the serialized body fits. The system row and
+  the current user message are preserved.
+- Coverage tests for the new behaviors (HTTP body surfacing, null content
+  coercion, idle-timeout cancellation, byte-cap trimming).
+
+### Security
+- Pinned GitHub Actions in `publish.yml` to full-SHA versions so a compromised
+  tag cannot inject code into the publish job.
+
 ## [3.1.0] - 2026-04-19
 
 ### Added
@@ -46,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Documented that `MCP_SESSIONS_DB` stores raw chat turns — treat as privileged.
 
-[Unreleased]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.1.0...HEAD
+[Unreleased]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.1.1...HEAD
+[3.1.1]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.1.0...v3.1.1
 [3.1.0]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/mecha1610/mcp-llm-studio/releases/tag/v3.0.0

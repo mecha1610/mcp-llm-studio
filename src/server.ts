@@ -6,6 +6,7 @@ import { z } from 'zod';
 import {
   VERSION,
   MAX_ID_LEN,
+  MAX_URL_LEN,
   MAX_PROMPT_LEN,
   MAX_EMBED_INPUT_ITEMS,
 } from './config.js';
@@ -69,7 +70,7 @@ server.registerTool(
     title: 'Download Model',
     description: 'Download a model from the LM Studio catalog or HuggingFace. Polls progress internally for up to 2 minutes.',
     inputSchema: z.object({
-      model: z.string().max(MAX_PROMPT_LEN).describe('Catalog model ID or HuggingFace URL'),
+      model: z.string().max(MAX_URL_LEN).describe('Catalog model ID or HuggingFace URL'),
       quantization: z.string().max(MAX_ID_LEN).optional().describe('e.g. "Q4_K_M" (HuggingFace URLs only)'),
     }),
   },

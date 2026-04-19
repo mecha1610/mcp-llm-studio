@@ -1,10 +1,23 @@
-import { nativeUrl, authHeaders, TIMEOUT_INFERENCE_MS, MAX_SSE_BYTES } from '../config.js';
+import {
+  nativeUrl,
+  authHeaders,
+  TIMEOUT_INFERENCE_MS,
+  MAX_SSE_BYTES,
+  SSE_IDLE_TIMEOUT_MS,
+} from '../config.js';
 import { ToolResult, errorResult, httpErrorResult } from '../types.js';
 
 class SSETruncatedError extends Error {
   constructor(public readonly limit: number) {
     super(`SSE response exceeded ${limit} bytes and was truncated`);
     this.name = 'SSETruncatedError';
+  }
+}
+
+class SSEIdleTimeoutError extends Error {
+  constructor(public readonly idleMs: number) {
+    super(`SSE stream idle for ${idleMs}ms and was aborted`);
+    this.name = 'SSEIdleTimeoutError';
   }
 }
 
@@ -27,9 +40,10 @@ export async function handleAsk(
     context_length?: number;
     stream?: boolean;
   },
-  options?: { maxBytes?: number },
+  options?: { maxBytes?: number; idleTimeoutMs?: number },
 ): Promise<ToolResult> {
   const maxBytes = options?.maxBytes ?? MAX_SSE_BYTES;
+  const idleTimeoutMs = options?.idleTimeoutMs ?? SSE_IDLE_TIMEOUT_MS;
   try {
     const body: Record<string, unknown> = {
       model: args.model,
@@ -52,7 +66,7 @@ export async function handleAsk(
     if (!res.ok) return httpErrorResult(res);
 
     if (args.stream) {
-      const { text, reasoning, stats } = await consumeNativeSSE(res, maxBytes);
+      const { text, reasoning, stats } = await consumeNativeSSE(res, maxBytes, idleTimeoutMs);
       return { content: [{ type: 'text', text: formatAskOutput(text, reasoning, stats) }] };
     }
 
@@ -64,8 +78,8 @@ export async function handleAsk(
     let text = '';
     let reasoning = '';
     for (const item of data.output ?? []) {
-      if (item.type === 'message') text += item.content;
-      else if (item.type === 'reasoning') reasoning += item.content;
+      if (item.type === 'message') text += item.content ?? '';
+      else if (item.type === 'reasoning') reasoning += item.content ?? '';
     }
 
     return {
@@ -95,6 +109,7 @@ function formatAskOutput(text: string, reasoning: string, stats?: Stats): string
 async function consumeNativeSSE(
   res: Response,
   maxBytes: number,
+  idleTimeoutMs: number,
 ): Promise<{ text: string; reasoning: string; stats?: Stats }> {
   if (!res.body) return { text: '(empty stream)', reasoning: '' };
   const reader = res.body.getReader();
@@ -128,7 +143,7 @@ async function consumeNativeSSE(
 
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await readWithIdleTimeout(reader, idleTimeoutMs);
       if (done) break;
       totalBytes += value.byteLength;
       if (totalBytes > maxBytes) {
@@ -142,9 +157,14 @@ async function consumeNativeSSE(
       buffer = lines.pop() ?? '';
       for (const line of lines) handleLine(line);
     }
+  } catch (err) {
+    if (err instanceof SSEIdleTimeoutError) {
+      await reader.cancel().catch(() => {});
+    }
+    throw err;
   } finally {
-    // Release the lock even on the truncation path so the Response body is
-    // not left dangling.
+    // Release the lock even on the truncation/idle path so the Response body
+    // is not left dangling.
     try {
       reader.releaseLock();
     } catch {
@@ -157,4 +177,22 @@ async function consumeNativeSSE(
   if (buffer.length > 0) handleLine(buffer);
 
   return { text, reasoning, stats };
+}
+
+// Race reader.read() against an idle timeout. If no chunk arrives within
+// idleMs, reject so the caller can cancel the stream. The timer is cleared
+// on every successful read to reset the idle window.
+async function readWithIdleTimeout<T>(
+  reader: ReadableStreamDefaultReader<T>,
+  idleMs: number,
+): Promise<ReadableStreamReadResult<T>> {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => reject(new SSEIdleTimeoutError(idleMs)), idleMs);
+  });
+  try {
+    return await Promise.race([reader.read(), timeoutPromise]);
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+  }
 }

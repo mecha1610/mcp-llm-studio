@@ -7,6 +7,7 @@ import {
   authHeaders,
   TIMEOUT_INFERENCE_MS,
   MAX_HISTORY_TURNS,
+  MAX_HISTORY_BYTES,
 } from '../config.js';
 import { ToolResult, errorResult, httpErrorResult } from '../types.js';
 
@@ -37,6 +38,12 @@ export function openProductionDb(): Database.Database {
   return db;
 }
 
+function totalContentBytes(rows: Row[]): number {
+  let sum = 0;
+  for (const r of rows) sum += Buffer.byteLength(r.content, 'utf8');
+  return sum;
+}
+
 export async function handleChat(
   args: {
     session_id: string;
@@ -50,9 +57,10 @@ export async function handleChat(
     ttl?: number;
   },
   database: Database.Database,
-  options?: { maxHistoryTurns?: number },
+  options?: { maxHistoryTurns?: number; maxHistoryBytes?: number },
 ): Promise<ToolResult> {
   const maxHistoryTurns = options?.maxHistoryTurns ?? MAX_HISTORY_TURNS;
+  const maxHistoryBytes = options?.maxHistoryBytes ?? MAX_HISTORY_BYTES;
   if (args.action === 'reset') {
     const info = database
       .prepare('DELETE FROM sessions WHERE id = ?')
@@ -106,6 +114,19 @@ export async function handleChat(
     messages.push({ role: 'system', content: args.system });
   }
   messages.push({ role: 'user', content: userMessage });
+
+  // Turn-level cap (MAX_HISTORY_TURNS) bounds row count but not size. Drop the
+  // oldest non-system row until the total serialized content is under the
+  // byte budget. The system prompt and the just-pushed user message are
+  // preserved — if the user message itself exceeds the budget, we let the
+  // single-argument MAX_PROMPT_LEN cap at the Zod boundary do that job.
+  while (totalContentBytes(messages) > maxHistoryBytes) {
+    const idx = messages.findIndex(
+      (m, i) => m.role !== 'system' && i !== messages.length - 1,
+    );
+    if (idx < 0) break;
+    messages.splice(idx, 1);
+  }
 
   try {
     const body: Record<string, unknown> = {

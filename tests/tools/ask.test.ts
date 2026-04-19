@@ -202,6 +202,76 @@ describe('handleAsk (native API)', () => {
     expect(result.content[0].text).toContain('404');
   });
 
+  it('surfaces LM Studio JSON error body in the error message', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ error: { message: 'Model not loaded: qwen-7b' } }),
+        { status: 422, statusText: 'Unprocessable Entity' },
+      ),
+    );
+
+    const result = await handleAsk({ model: 'qwen-7b', prompt: 'Hi' });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('422');
+    expect(result.content[0].text).toContain('Model not loaded: qwen-7b');
+  });
+
+  it('surfaces plain-text error body when response is not JSON', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response('VRAM allocation failed', {
+        status: 500,
+        statusText: 'Internal Server Error',
+      }),
+    );
+
+    const result = await handleAsk({ model: 'm', prompt: 'Hi' });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('VRAM allocation failed');
+  });
+
+  it('coerces null content items without producing "null" text', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          output: [
+            { type: 'message', content: null },
+            { type: 'message', content: 'actual reply' },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await handleAsk({ model: 'm', prompt: 'Hi' });
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).not.toContain('null');
+    expect(result.content[0].text).toContain('actual reply');
+  });
+
+  it('aborts the SSE reader when no chunk arrives within the idle timeout', async () => {
+    // Stream that sends one chunk then hangs indefinitely.
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode('data: {"type":"message.delta","content":"hi"}\n\n'),
+        );
+        // never close, never push again → reader.read() blocks forever
+      },
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(stream, { status: 200 }),
+    );
+
+    const result = await handleAsk(
+      { model: 'm', prompt: 'Hi', stream: true },
+      { idleTimeoutMs: 50 },
+    );
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('idle');
+    expect(result.content[0].text).toContain('50');
+  });
+
   it('returns error on network failure', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('ECONNREFUSED'));
 

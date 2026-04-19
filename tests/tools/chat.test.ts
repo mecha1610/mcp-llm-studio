@@ -389,6 +389,78 @@ describe('handleChat', () => {
     ]);
   });
 
+  it('trims oldest non-system rows when total history bytes exceed the cap', async () => {
+    const db = makeDb();
+    const insert = db.prepare(
+      'INSERT INTO sessions (id, role, content, created_at) VALUES (?, ?, ?, ?)',
+    );
+    const now = Date.now();
+    // 4 prior rows, each 100 bytes. Cap will be set to 250 bytes — only the
+    // most recent 2 (plus the new user message) should survive.
+    const pad = (i: number) => `${i}`.padStart(100, 'x');
+    insert.run('bytes', 'user', pad(0), now);
+    insert.run('bytes', 'assistant', pad(1), now + 1);
+    insert.run('bytes', 'user', pad(2), now + 2);
+    insert.run('bytes', 'assistant', pad(3), now + 3);
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await handleChat(
+      { session_id: 'bytes', action: 'send', message: 'new', model: 'm' },
+      db,
+      { maxHistoryBytes: 250 },
+    );
+    expect(result.isError).toBeUndefined();
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+    // Oldest rows dropped until the sum of content bytes is under 250.
+    // The new user message ("new") is always kept. Rows are dropped from
+    // the oldest non-system position, so we expect rows 2 and 3 survive
+    // plus the new message — total roughly 200 + 3 bytes < 250.
+    const contents = body.messages.map((m: { content: string }) => m.content);
+    expect(contents).not.toContain(pad(0));
+    expect(contents).not.toContain(pad(1));
+    expect(contents).toContain(pad(2));
+    expect(contents).toContain(pad(3));
+    expect(contents[contents.length - 1]).toBe('new');
+  });
+
+  it('preserves the system row when byte-trimming history', async () => {
+    const db = makeDb();
+    const insert = db.prepare(
+      'INSERT INTO sessions (id, role, content, created_at) VALUES (?, ?, ?, ?)',
+    );
+    const now = Date.now();
+    insert.run('bytes-sys', 'system', 'S'.repeat(50), now);
+    insert.run('bytes-sys', 'user', 'x'.repeat(200), now + 1);
+    insert.run('bytes-sys', 'assistant', 'y'.repeat(200), now + 2);
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+        { status: 200 },
+      ),
+    );
+
+    await handleChat(
+      { session_id: 'bytes-sys', action: 'send', message: 'q', model: 'm' },
+      db,
+      { maxHistoryBytes: 150 },
+    );
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+    expect(body.messages[0].role).toBe('system');
+    expect(body.messages[body.messages.length - 1]).toEqual({
+      role: 'user',
+      content: 'q',
+    });
+  });
+
   it('stores only the visible assistant content (not reasoning) in session history', async () => {
     const db = makeDb();
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
