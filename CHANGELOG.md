@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.2] - 2026-04-19
+
+### Fixed
+- Publish workflow now uses Node 24 (which ships with npm 11.5+ natively)
+  and drops the in-place `npm install -g npm@latest` step that hit a
+  `Cannot find module 'promise-retry'` regression in npm 10.9.x. This
+  unblocks Trusted Publishing on the `v*` tag push trigger.
+
 ## [3.1.1] - 2026-04-18
 
 ### Changed
@@ -69,7 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Documented that `MCP_SESSIONS_DB` stores raw chat turns — treat as privileged.
 
-[Unreleased]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.1.1...HEAD
+[Unreleased]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.1.2...HEAD
+[3.1.2]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.1.1...v3.1.2
 [3.1.1]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.1.0...v3.1.1
 [3.1.0]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/mecha1610/mcp-llm-studio/releases/tag/v3.0.0
