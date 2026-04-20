@@ -18,6 +18,28 @@ import { handleAsk } from './tools/ask.js';
 import { handleChat, openProductionDb } from './tools/chat.js';
 import { handleEmbed } from './tools/embed.js';
 
+const cliFlag = process.argv[2];
+if (cliFlag === '--version' || cliFlag === '-v') {
+  process.stdout.write(`${VERSION}\n`);
+  process.exit(0);
+}
+if (cliFlag === '--help' || cliFlag === '-h') {
+  process.stdout.write(
+    `mcp-llm-studio v${VERSION}\n` +
+      `MCP server bridging Claude Code (and other MCP clients) to LM Studio.\n\n` +
+      `Usage:\n` +
+      `  mcp-llm-studio                Run server on stdio (invoked by your MCP client)\n` +
+      `  mcp-llm-studio --version,-v   Print version and exit\n` +
+      `  mcp-llm-studio --help,-h      Show this help\n\n` +
+      `Environment:\n` +
+      `  LM_STUDIO_URL       Base URL of LM Studio (default http://localhost:1234)\n` +
+      `  LM_STUDIO_API_KEY   Optional Bearer token for LM Studio\n` +
+      `  MCP_SESSIONS_DB     SQLite path for chat history (default ~/.mcp-llm-studio/sessions.db)\n\n` +
+      `Docs: https://github.com/mecha1610/mcp-llm-studio\n`,
+  );
+  process.exit(0);
+}
+
 const server = new McpServer(
   { name: 'llm-studio', version: VERSION },
   {

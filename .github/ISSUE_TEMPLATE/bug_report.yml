@@ -1,0 +1,61 @@
+name: Bug report
+description: Report a crash, tool error, or unexpected behavior
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected instead.
+      placeholder: "When I call `model_load` with ... it returns ..."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start LM Studio (version X)
+        2. Run `claude mcp add ... npx -y mcp-llm-studio`
+        3. Ask Claude to "..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: mcp-llm-studio version
+      description: Output of `npx -y mcp-llm-studio --version`
+      placeholder: "3.1.3"
+    validations:
+      required: true
+  - type: input
+    id: lmstudio
+    attributes:
+      label: LM Studio version
+      placeholder: "0.4.x"
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: MCP client
+      description: Claude Code, Claude Desktop, Codex, VS Code, other...
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - macOS
+        - Linux
+        - Windows
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: |
+        From the MCP client (stderr of the server process) — redact anything sensitive first.
+      render: shell

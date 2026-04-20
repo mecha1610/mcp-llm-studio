@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.3] - 2026-04-20
+
+### Added
+- `--version` / `-v` and `--help` / `-h` CLI flags so users can sanity-check
+  the installed package without wiring it into an MCP client.
+- Verified install blocks in the README for Claude Code, Claude Desktop,
+  Codex CLI (via `~/.codex/config.toml`), and VS Code MCP (`.vscode/mcp.json`
+  with `"type": "stdio"`).
+- `.github/ISSUE_TEMPLATE/` with bug and feature forms + a config pointing
+  security reports to private GitHub advisories.
+- `npm version` badge in the README.
+
+### Fixed
+- Codex CLI install command now uses `--env` (the canonical flag) instead of `-e`.
+
 ## [3.1.2] - 2026-04-19
 
 ### Fixed
@@ -77,7 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Documented that `MCP_SESSIONS_DB` stores raw chat turns — treat as privileged.
 
-[Unreleased]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.1.2...HEAD
+[Unreleased]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.1.3...HEAD
+[3.1.3]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.1.2...v3.1.3
 [3.1.2]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.1.1...v3.1.2
 [3.1.1]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.1.0...v3.1.1
 [3.1.0]: https://github.com/mecha1610/mcp-llm-studio/compare/v3.0.0...v3.1.0

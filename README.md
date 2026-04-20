@@ -1,5 +1,6 @@
 # MCP LLM Studio
 
+[![npm version](https://img.shields.io/npm/v/mcp-llm-studio.svg?color=cb3837&logo=npm)](https://www.npmjs.com/package/mcp-llm-studio)
 [![CI](https://github.com/mecha1610/mcp-llm-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/mecha1610/mcp-llm-studio/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)](https://nodejs.org/)
@@ -18,13 +19,18 @@ The server uses a **hybrid API surface**: LM Studio's native REST API (`/api/v1/
 
 ## Requirements
 
-- **Node.js ≥ 20**
-- **LM Studio ≥ 0.4.0** (native `/api/v1/*` API required for model management and `ask`)
-- An MCP client — **Claude Code**, the Claude desktop app, or any client speaking MCP over stdio
+- **Node.js ≥ 20** — `node -v`
+- **[LM Studio](https://lmstudio.ai/) ≥ 0.4.0**, with the local server running on port `1234`
+  (LM Studio → *Developer* tab → *Start Server*). The native `/api/v1/*` API must be enabled.
+- An MCP client (Claude Code, Claude Desktop, Codex, VS Code, or any stdio client)
+- At least one model loaded or downloadable — see the [LM Studio model catalog](https://lmstudio.ai/models)
 
-## Quick Start
+## Install
 
-Register the server with Claude Code — no clone or build needed:
+Install the server in your MCP client — it runs locally via `npx`, no clone or build needed.
+All variants are equivalent (stdio transport, same package from npm).
+
+### Claude Code
 
 ```bash
 claude mcp add llm-studio \
@@ -32,20 +38,82 @@ claude mcp add llm-studio \
   -- npx -y mcp-llm-studio
 ```
 
-Or, if you want to run from source:
+### Claude Desktop
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`
+(macOS) / `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "llm-studio": {
+      "command": "npx",
+      "args": ["-y", "mcp-llm-studio"],
+      "env": { "LM_STUDIO_URL": "http://localhost:1234" }
+    }
+  }
+}
+```
+
+### Codex CLI
+
+```bash
+codex mcp add llm-studio \
+  --env LM_STUDIO_URL=http://localhost:1234 \
+  -- npx -y mcp-llm-studio
+```
+
+Or declare it in `~/.codex/config.toml` (or project-scoped `.codex/config.toml`):
+
+```toml
+[mcp_servers.llm-studio]
+command = "npx"
+args = ["-y", "mcp-llm-studio"]
+
+[mcp_servers.llm-studio.env]
+LM_STUDIO_URL = "http://localhost:1234"
+```
+
+### VS Code (GitHub Copilot Chat)
+
+Add to `.vscode/mcp.json` at the workspace root (for user-level, run
+**MCP: Open User Configuration** from the Command Palette):
+
+```json
+{
+  "servers": {
+    "llm-studio": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "mcp-llm-studio"],
+      "env": { "LM_STUDIO_URL": "http://localhost:1234" }
+    }
+  }
+}
+```
+
+### From source (contributors)
 
 ```bash
 git clone https://github.com/mecha1610/mcp-llm-studio.git
-cd mcp-llm-studio
-npm install
-npm run build
+cd mcp-llm-studio && npm install && npm run build
 
 claude mcp add llm-studio \
   -e LM_STUDIO_URL=http://localhost:1234 \
   -- node "$(pwd)/dist/server.js"
 ```
 
-That's it. Start Claude Code and ask it to `list loaded models` — it should hit your LM Studio instance via the `model_list` tool.
+### Verify
+
+Quick sanity check the package is installed:
+
+```bash
+npx -y mcp-llm-studio --version
+# → 3.1.3
+```
+
+Then restart your MCP client and ask it: *"list the loaded LM Studio models"*.
+It should invoke `model_list` and print whatever is currently in VRAM.
 
 ## Configuration
 
@@ -58,6 +126,20 @@ That's it. Start Claude Code and ask it to `list loaded models` — it should hi
 Copy `.env.example` → `.env` for local overrides.
 
 > **Security note on `MCP_SESSIONS_DB`** — this SQLite file stores the raw text of every `chat` turn, including anything passed as `system`. Treat its path as a privileged location: keep it under `$HOME` (default), do not put it on a shared/world-readable volume, and do not point it at a path you do not control. The server creates the parent directory if missing and will happily write to any path the server process can reach.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `ECONNREFUSED 127.0.0.1:1234` on any tool call | LM Studio server is not running | LM Studio → *Developer* tab → *Start Server* (port 1234) |
+| `Model not loaded: <name>` on `ask` / `chat` | No model in VRAM under that ID | Call `model_load` first, or pick an ID from `model_list` |
+| `LM Studio error: 404` on `model_download` | The catalog/HF URL did not resolve | Verify the ID on [lmstudio.ai/models](https://lmstudio.ai/models), or pass a full `hf:org/repo` URL |
+| `SSE stream idle for 60000ms` on streamed `ask` | Model is too slow or LM Studio hung | Lower `max_tokens`, or unload + reload the model; raise via a custom client if intentional |
+| `command not found: npx` | Node not installed or PATH missing npm's bin | Install Node ≥ 20 from [nodejs.org](https://nodejs.org/) |
+| `EACCES` on first `npx -y mcp-llm-studio` | Old npm cache owned by root | `sudo chown -R $(whoami) ~/.npm` |
+| MCP client says the server exited | Wrong `LM_STUDIO_URL`, or the native API is disabled | Check `curl $LM_STUDIO_URL/api/v0/models` returns JSON |
+
+Run `claude mcp list` (or your client's equivalent) to confirm the server is registered and healthy.
 
 ## Tools
 
