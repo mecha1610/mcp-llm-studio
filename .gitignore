@@ -1,2 +1,20 @@
 node_modules/
 dist/
+
+# local env overrides — never commit
+.env
+.env.local
+.env.*.local
+
+# ad-hoc secret/token handoff files
+npm.md
+
+# local LM Studio session store if ever created inside the repo
+*.db
+*.sqlite
+*.sqlite3
+
+# editor / OS scratch
+.DS_Store
+.vscode/*.log
+*.swp
