@@ -1,0 +1,49 @@
+# Excluded from .mcpb bundles packed via `mcpb pack`. The distributed bundle
+# only needs the compiled server (dist/), the manifest, the runtime
+# dependencies under node_modules/, and a few metadata files.
+
+# Source and tests — compiled output is already in dist/
+src/
+tests/
+tsconfig.json
+vitest.config.ts
+*.test.ts
+
+# CI + repo hygiene
+.github/
+.git/
+.gitignore
+.env
+.env.example
+.mcpbignore
+.dockerignore
+
+# Release metadata not needed at runtime
+CHANGELOG.md
+SECURITY.md
+CONTRIBUTING.md
+AUDIT.md
+
+# Build artefacts / caches
+coverage/
+*.tgz
+*.mcpb
+.DS_Store
+
+# Anything dev-only that slipped into node_modules (rebuild with
+# `npm ci --omit=dev` before packing to shrink this further).
+node_modules/.bin/
+node_modules/.cache/
+node_modules/**/*.md
+node_modules/**/*.markdown
+node_modules/**/test/
+node_modules/**/tests/
+node_modules/**/docs/
+node_modules/**/example/
+node_modules/**/examples/
+node_modules/**/.github/
+node_modules/**/.travis.yml
+node_modules/**/.eslintrc*
+node_modules/**/.prettierrc*
+node_modules/**/LICENSE*
+node_modules/**/CHANGELOG*

@@ -1,0 +1,94 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.mecha1610/mcp-llm-studio",
+  "title": "LM Studio",
+  "description": "Bridge MCP clients (Claude Code, Desktop, Codex, VS Code) to a local LM Studio instance.",
+  "version": "3.1.5",
+  "repository": {
+    "url": "https://github.com/mecha1610/mcp-llm-studio",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/mecha1610/mcp-llm-studio",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "mcp-llm-studio",
+      "version": "3.1.5",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "LM_STUDIO_URL",
+          "description": "Base URL of the LM Studio REST server (native /api/v1 + OpenAI-compat /v1).",
+          "default": "http://localhost:1234",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "LM_STUDIO_API_KEY",
+          "description": "Optional Bearer token; only needed if LM Studio is configured with authentication enabled.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "MCP_SESSIONS_DB",
+          "description": "Path to the SQLite database used by the chat tool to persist multi-turn history. Parent directory is created if missing.",
+          "default": "~/.mcp-llm-studio/sessions.db",
+          "format": "filepath",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "LM_STUDIO_TIMEOUT_DEFAULT_MS",
+          "description": "Fetch timeout in milliseconds for model_list, model_unload, embed, and download-start.",
+          "default": "30000",
+          "format": "number",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "LM_STUDIO_TIMEOUT_INFERENCE_MS",
+          "description": "Fetch timeout in milliseconds for ask and chat.",
+          "default": "120000",
+          "format": "number",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "LM_STUDIO_TIMEOUT_LOAD_MS",
+          "description": "Fetch timeout in milliseconds for model_load. Raise for very large models.",
+          "default": "300000",
+          "format": "number",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "LM_STUDIO_SSE_IDLE_TIMEOUT_MS",
+          "description": "Per-chunk idle timeout in milliseconds for streaming ask responses.",
+          "default": "60000",
+          "format": "number",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "LM_STUDIO_DOWNLOAD_POLL_INTERVAL_MS",
+          "description": "Polling cadence in milliseconds for model_download progress checks.",
+          "default": "5000",
+          "format": "number",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "LM_STUDIO_DOWNLOAD_POLL_TIMEOUT_MS",
+          "description": "Overall poll budget in milliseconds for model_download before returning a progress-in-flight status.",
+          "default": "120000",
+          "format": "number",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}

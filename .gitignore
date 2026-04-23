@@ -18,3 +18,12 @@ npm.md
 .DS_Store
 .vscode/*.log
 *.swp
+
+# mcpb bundles and npm pack tarballs are build artefacts, never committed
+*.mcpb
+*.tgz
+sbom.spdx.json
+sbom.cyclonedx.json
+
+# local scratch files (drafts, handoff notes) — never committed
+.claude-scratch/
