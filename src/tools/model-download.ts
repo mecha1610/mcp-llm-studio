@@ -1,4 +1,10 @@
-import { nativeUrl, authHeaders, TIMEOUT_DEFAULT_MS } from '../config.js';
+import {
+  nativeUrl,
+  authHeaders,
+  TIMEOUT_DEFAULT_MS,
+  DOWNLOAD_POLL_INTERVAL_MS,
+  DOWNLOAD_POLL_TIMEOUT_MS,
+} from '../config.js';
 import { ToolResult, errorResult, httpErrorResult } from '../types.js';
 
 type StartResponse = {
@@ -23,8 +29,8 @@ export async function handleModelDownload(
   args: { model: string; quantization?: string },
   options?: { pollIntervalMs?: number; timeoutMs?: number },
 ): Promise<ToolResult> {
-  const pollMs = options?.pollIntervalMs ?? 5000;
-  const timeoutMs = options?.timeoutMs ?? 120_000;
+  const pollMs = options?.pollIntervalMs ?? DOWNLOAD_POLL_INTERVAL_MS;
+  const timeoutMs = options?.timeoutMs ?? DOWNLOAD_POLL_TIMEOUT_MS;
 
   try {
     const startBody: Record<string, unknown> = { model: args.model };

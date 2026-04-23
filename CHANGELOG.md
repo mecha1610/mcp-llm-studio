@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.4] - 2026-04-23
+
+### Added
+- Six optional env vars to override previously-hardcoded fetch and polling
+  timeouts: `LM_STUDIO_TIMEOUT_DEFAULT_MS`, `LM_STUDIO_TIMEOUT_INFERENCE_MS`,
+  `LM_STUDIO_TIMEOUT_LOAD_MS`, `LM_STUDIO_SSE_IDLE_TIMEOUT_MS`,
+  `LM_STUDIO_DOWNLOAD_POLL_INTERVAL_MS`, `LM_STUDIO_DOWNLOAD_POLL_TIMEOUT_MS`.
+  Lets operators on slow networks or with very large models extend the
+  internal budgets without forking. Invalid values fall back to the default
+  silently.
+
 ## [3.1.3] - 2026-04-20
 
 ### Added

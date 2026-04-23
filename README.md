@@ -122,6 +122,14 @@ It should invoke `model_list` and print whatever is currently in VRAM.
 | `LM_STUDIO_URL` | `http://localhost:1234` | Base URL of your LM Studio REST server |
 | `LM_STUDIO_API_KEY` | *(empty)* | Optional `Authorization: Bearer <key>` header |
 | `MCP_SESSIONS_DB` | `~/.mcp-llm-studio/sessions.db` | SQLite path for `chat` history |
+| `LM_STUDIO_TIMEOUT_DEFAULT_MS` | `30000` | Fetch timeout for `model_list`, `model_unload`, `embed`, download-start |
+| `LM_STUDIO_TIMEOUT_INFERENCE_MS` | `120000` | Fetch timeout for `ask` and `chat` |
+| `LM_STUDIO_TIMEOUT_LOAD_MS` | `300000` | Fetch timeout for `model_load` (sync — raise for very large models) |
+| `LM_STUDIO_SSE_IDLE_TIMEOUT_MS` | `60000` | Per-chunk idle timeout on `ask` streaming |
+| `LM_STUDIO_DOWNLOAD_POLL_INTERVAL_MS` | `5000` | Polling cadence for `model_download` |
+| `LM_STUDIO_DOWNLOAD_POLL_TIMEOUT_MS` | `120000` | Internal poll budget for `model_download` (exceeds it → returns a "still downloading" status with `job_id`) |
+
+All `*_MS` values must be positive integers; invalid values fall back to the default silently.
 
 Copy `.env.example` → `.env` for local overrides.
 

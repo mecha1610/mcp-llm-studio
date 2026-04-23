@@ -8,15 +8,40 @@ export const LM_STUDIO_API_KEY = process.env.LM_STUDIO_API_KEY ?? '';
 export const MCP_SESSIONS_DB =
   process.env.MCP_SESSIONS_DB ?? path.join(os.homedir(), '.mcp-llm-studio', 'sessions.db');
 
-export const TIMEOUT_DEFAULT_MS = 30_000;
-export const TIMEOUT_INFERENCE_MS = 120_000;
-export const TIMEOUT_LOAD_MS = 300_000;
+// Parse a positive-integer env var, falling back to the given default when the
+// variable is unset, empty, non-numeric, non-integer, or non-positive. Exported
+// for tests.
+export function readEnvInt(name: string, defaultValue: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return defaultValue;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed <= 0) {
+    return defaultValue;
+  }
+  return parsed;
+}
+
+export const TIMEOUT_DEFAULT_MS = readEnvInt('LM_STUDIO_TIMEOUT_DEFAULT_MS', 30_000);
+export const TIMEOUT_INFERENCE_MS = readEnvInt('LM_STUDIO_TIMEOUT_INFERENCE_MS', 120_000);
+export const TIMEOUT_LOAD_MS = readEnvInt('LM_STUDIO_TIMEOUT_LOAD_MS', 300_000);
 
 // Idle timeout for SSE read loop. A slow-drip upstream can keep the TCP
 // connection open while sending no data; the overall fetch timeout may not
 // fire because headers already arrived. We abort the reader if no chunk
 // arrives for this many ms.
-export const SSE_IDLE_TIMEOUT_MS = 60_000;
+export const SSE_IDLE_TIMEOUT_MS = readEnvInt('LM_STUDIO_SSE_IDLE_TIMEOUT_MS', 60_000);
+
+// Polling cadence and overall deadline for model_download status polling.
+// Exposed so operators on slow networks (or huge models) can extend the
+// internal budget without hitting the "still downloading" early-return.
+export const DOWNLOAD_POLL_INTERVAL_MS = readEnvInt(
+  'LM_STUDIO_DOWNLOAD_POLL_INTERVAL_MS',
+  5_000,
+);
+export const DOWNLOAD_POLL_TIMEOUT_MS = readEnvInt(
+  'LM_STUDIO_DOWNLOAD_POLL_TIMEOUT_MS',
+  120_000,
+);
 
 // Cap on the bytes we will accumulate from a single SSE response. Prevents a
 // runaway server (or adversarial response) from forcing unbounded growth of
@@ -41,7 +66,7 @@ export const MAX_URL_LEN = 2048;
 export const MAX_PROMPT_LEN = 1_048_576; // 1 MiB
 export const MAX_EMBED_INPUT_ITEMS = 1024;
 
-export const VERSION = '3.1.3';
+export const VERSION = '3.1.4';
 
 export function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
