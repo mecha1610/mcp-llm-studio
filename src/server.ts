@@ -121,34 +121,11 @@ server.registerTool(
   (args) => handleAsk(args),
 );
 
-const chatDb = openProductionDb();
-
-server.registerTool(
-  'chat',
-  {
-    title: 'Chat (Persistent)',
-    description:
-      'Multi-turn conversation with persistent history stored in SQLite. Use session_id to resume previous conversations. Supports speculative decoding and auto-evict.',
-    inputSchema: z.object({
-      session_id: z.string().max(MAX_ID_LEN).describe('Arbitrary session identifier (e.g. "research-1")'),
-      action: z
-        .enum(['send', 'reset'])
-        .describe('"send" to add a message, "reset" to clear the session'),
-      message: z.string().max(MAX_PROMPT_LEN).optional().describe('Required when action is "send"'),
-      model: z.string().max(MAX_ID_LEN).describe('LM Studio model ID'),
-      system: z
-        .string()
-        .max(MAX_PROMPT_LEN)
-        .optional()
-        .describe('System prompt — applied only on first message of a new session'),
-      temperature: z.number().min(0).max(2).optional(),
-      max_tokens: z.number().min(1).optional(),
-      draft_model: z.string().max(MAX_ID_LEN).optional().describe('Draft model for speculative decoding'),
-      ttl: z.number().optional().describe('Auto-evict the model after N seconds of inactivity'),
-    }),
-  },
-  (args) => handleChat(args, chatDb),
-);
+// Opening the sessions DB is deferred to main() — if MCP_SESSIONS_DB points at
+// an unwritable path, the error is caught by main().catch() and surfaced as a
+// clean stderr line instead of a raw Node stack trace emitted before the MCP
+// handshake even starts. The chat tool is registered inside main() once the
+// DB handle is available.
 
 server.registerTool(
   'embed',
@@ -169,12 +146,68 @@ server.registerTool(
 );
 
 async function main() {
+  const chatDb = openProductionDb();
+  server.registerTool(
+    'chat',
+    {
+      title: 'Chat (Persistent)',
+      description:
+        'Multi-turn conversation with persistent history stored in SQLite. Use session_id to resume previous conversations. Supports speculative decoding and auto-evict.',
+      inputSchema: z.object({
+        session_id: z
+          .string()
+          .max(MAX_ID_LEN)
+          .describe('Arbitrary session identifier (e.g. "research-1")'),
+        action: z
+          .enum(['send', 'reset'])
+          .describe('"send" to add a message, "reset" to clear the session'),
+        message: z
+          .string()
+          .max(MAX_PROMPT_LEN)
+          .optional()
+          .describe('Required when action is "send"'),
+        model: z.string().max(MAX_ID_LEN).describe('LM Studio model ID'),
+        system: z
+          .string()
+          .max(MAX_PROMPT_LEN)
+          .optional()
+          .describe('System prompt — applied only on first message of a new session'),
+        temperature: z.number().min(0).max(2).optional(),
+        max_tokens: z.number().min(1).optional(),
+        draft_model: z
+          .string()
+          .max(MAX_ID_LEN)
+          .optional()
+          .describe('Draft model for speculative decoding'),
+        ttl: z.number().optional().describe('Auto-evict the model after N seconds of inactivity'),
+      }),
+    },
+    (args) => handleChat(args, chatDb),
+  );
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error(`LLM Studio MCP Server v${VERSION} running on stdio`);
 }
 
-main().catch((error) => {
+main().catch((error: unknown) => {
+  // Pretty-print known system errors (ENOENT/EACCES on MCP_SESSIONS_DB path,
+  // EADDRINUSE on transport wiring, etc.) as a single actionable line so MCP
+  // clients can surface a useful message instead of a multi-line Node stack.
+  // Unexpected errors still print the full object to preserve debuggability.
+  if (error instanceof Error) {
+    const code = (error as unknown as { code?: unknown }).code;
+    if (
+      typeof code === 'string' &&
+      (code === 'ENOENT' || code === 'EACCES' || code === 'EROFS' || code === 'EPERM')
+    ) {
+      console.error(
+        `Fatal: ${error.message}\n` +
+          `Hint: MCP_SESSIONS_DB points at an unwritable path. Set it to a directory the server can create.`,
+      );
+      process.exit(1);
+    }
+  }
   console.error('Fatal error:', error);
   process.exit(1);
 });

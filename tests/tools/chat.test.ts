@@ -382,11 +382,10 @@ describe('handleChat', () => {
     // No system role should appear — session is pre-existing, so args.system
     // is ignored (consistent with the "system only on first send" rule).
     expect(body.messages.some((m: { role: string }) => m.role === 'system')).toBe(false);
-    // Only the last 1 non-system row + the new user message.
-    expect(body.messages).toEqual([
-      { role: 'assistant', content: 'old-a' },
-      { role: 'user', content: 'hi' },
-    ]);
+    // maxHistoryTurns:1 fetches the most recent non-system row, which is the
+    // assistant; the orphan-assistant sweep then drops it so the outgoing
+    // message array starts with a user role as the OpenAI schema requires.
+    expect(body.messages).toEqual([{ role: 'user', content: 'hi' }]);
   });
 
   it('trims oldest non-system rows when total history bytes exceed the cap', async () => {
@@ -459,6 +458,52 @@ describe('handleChat', () => {
       role: 'user',
       content: 'q',
     });
+  });
+
+  it('drops a leading assistant row left orphaned by byte-trimming', async () => {
+    // Regression: byte-trim drops one row at a time, so starting from
+    // [u-a, a-a, u-b, a-b, u-c, a-c] with a budget that only fits 3 rows + the
+    // new user message, the loop exits on [a-b, u-c, a-c, new_user] — a head
+    // that begins with role=assistant, which the OpenAI chat schema rejects.
+    const db = makeDb();
+    const insert = db.prepare(
+      'INSERT INTO sessions (id, role, content, created_at) VALUES (?, ?, ?, ?)',
+    );
+    const now = Date.now();
+    const pad = (i: number) => `${i}`.padStart(100, 'x');
+    insert.run('orphan', 'user', pad(0), now);
+    insert.run('orphan', 'assistant', pad(1), now + 1);
+    insert.run('orphan', 'user', pad(2), now + 2);
+    insert.run('orphan', 'assistant', pad(3), now + 3);
+    insert.run('orphan', 'user', pad(4), now + 4);
+    insert.run('orphan', 'assistant', pad(5), now + 5);
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await handleChat(
+      { session_id: 'orphan', action: 'send', message: 'n', model: 'm' },
+      db,
+      { maxHistoryBytes: 351 },
+    );
+    expect(result.isError).toBeUndefined();
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+    expect(body.messages[0].role).not.toBe('assistant');
+    expect(body.messages[body.messages.length - 1]).toEqual({
+      role: 'user',
+      content: 'n',
+    });
+    // Specifically: [u-c, a-c, new_user] — the orphaned a-b has been dropped.
+    expect(body.messages.map((m: { role: string }) => m.role)).toEqual([
+      'user',
+      'assistant',
+      'user',
+    ]);
   });
 
   it('stores only the visible assistant content (not reasoning) in session history', async () => {

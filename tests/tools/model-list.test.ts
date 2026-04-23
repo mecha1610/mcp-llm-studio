@@ -37,4 +37,14 @@ describe('handleModelList', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('ECONNREFUSED');
   });
+
+  it('returns a typed error when LM Studio responds without a data array', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'oops' }), { status: 200 }),
+    );
+
+    const result = await handleModelList();
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/unexpected model list shape/i);
+  });
 });

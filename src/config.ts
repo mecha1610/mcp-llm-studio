@@ -66,7 +66,7 @@ export const MAX_URL_LEN = 2048;
 export const MAX_PROMPT_LEN = 1_048_576; // 1 MiB
 export const MAX_EMBED_INPUT_ITEMS = 1024;
 
-export const VERSION = '3.1.4';
+export const VERSION = '3.1.5';
 
 export function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };

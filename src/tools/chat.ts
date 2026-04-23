@@ -128,6 +128,20 @@ export async function handleChat(
     messages.splice(idx, 1);
   }
 
+  // Dropping oldest-first one row at a time can leave a lone assistant row at
+  // the head of the history (e.g. [system, assistant_old, user_new, ...] after
+  // a matching user was dropped). The OpenAI chat schema rejects a message
+  // sequence where a non-system message starts with role=assistant. Drop any
+  // leading assistant rows after trimming so the array we send is always
+  // system?, then user/assistant/user/... pairs.
+  while (true) {
+    const firstNonSystem = messages.findIndex((m) => m.role !== 'system');
+    if (firstNonSystem < 0) break;
+    if (messages[firstNonSystem].role !== 'assistant') break;
+    if (firstNonSystem === messages.length - 1) break;
+    messages.splice(firstNonSystem, 1);
+  }
+
   try {
     const body: Record<string, unknown> = {
       model: args.model,

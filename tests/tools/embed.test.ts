@@ -56,4 +56,26 @@ describe('handleEmbed', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('ECONNREFUSED');
   });
+
+  it('surfaces an actionable message when LM Studio refuses the connection', async () => {
+    // Node's real undici error wraps the cause with {code:'ECONNREFUSED'}.
+    const err = new TypeError('fetch failed');
+    (err as { cause?: unknown }).cause = { code: 'ECONNREFUSED' };
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(err);
+
+    const result = await handleEmbed({ model: 'nomic-embed', input: 'test' });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/cannot reach LM Studio/i);
+    expect(result.content[0].text).toMatch(/Start Server/i);
+  });
+
+  it('returns a typed error when LM Studio responds without a data array', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'something' }), { status: 200 }),
+    );
+
+    const result = await handleEmbed({ model: 'nomic-embed', input: 'test' });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/unexpected embeddings shape/i);
+  });
 });

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.5] - 2026-04-23
+
+### Fixed
+- `chat` byte-trim loop could leave a leading `assistant` row at the head of
+  the outgoing message array when the oldest `user` was dropped without its
+  paired `assistant`. LM Studio's OpenAI-compatible endpoint rejects that
+  sequence. Added an explicit post-trim sweep that drops orphan leading
+  `assistant` rows so the array is always `system?` then user/assistant
+  pairs.
+- `openProductionDb()` was invoked at module-load time, so a misconfigured
+  `MCP_SESSIONS_DB` pointing at an unwritable path produced a raw Node stack
+  trace before the MCP handshake started. Moved the call into `main()` so
+  startup failures are caught by `main().catch()` and surfaced on stderr as a
+  single clean line.
+- `errorResult` now detects `ECONNREFUSED`, `ENOTFOUND`, and timeout/abort
+  errors and returns an actionable message citing `LM_STUDIO_URL` and the
+  relevant timeout env var, instead of the opaque "Failed: fetch failed".
+- `model_list` and `embed` now return a typed error when LM Studio responds
+  with a 200 whose body lacks the expected `data` array, instead of throwing
+  a confusing `TypeError: Cannot read properties of null`.
+
+### Added
+- Regression tests for each fix: orphan-assistant trim, ECONNREFUSED message
+  shape, malformed `data.data` bodies on `model_list` and `embed`.
+
 ## [3.1.4] - 2026-04-23
 
 ### Added
