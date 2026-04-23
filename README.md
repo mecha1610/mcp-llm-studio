@@ -17,6 +17,26 @@ LM Studio runs LLMs locally. Claude Code doesn't talk to it out of the box. This
 
 The server uses a **hybrid API surface**: LM Studio's native REST API (`/api/v1/*`) for model lifecycle and single-turn `ask` (gets reasoning + per-request stats), and the OpenAI-compatible API (`/v1/*`) for multi-turn `chat` (keeps history in SQLite — needed because the native chat endpoint can't replay assistant messages) and `embed`.
 
+## vs. other LM Studio MCP servers
+
+A few open-source MCP bridges to LM Studio already exist. Honest comparison with the most-starred alternative:
+
+| | `mcp-llm-studio` | [`infinitimeless/LMStudio-MCP`](https://github.com/infinitimeless/LMStudio-MCP) |
+|---|---|---|
+| Stack | TypeScript, Node.js ≥ 20 | Python 3.7+ |
+| Install | `npx -y mcp-llm-studio` (npm) | `uvx`, pip, or Docker (`ghcr.io/infinitimeless/lmstudio-mcp`) |
+| Model lifecycle | list, load, unload, **download** | list, get-current |
+| Reasoning output | parsed & returned in the `ask` response | accepts `reasoning_effort` as input; reasoning content is not surfaced back to the caller |
+| Per-request stats (tok/s, TTFT, token counts) | returned on every `ask` | not exposed |
+| Multi-turn history | SQLite on the MCP server (persistent on disk, independent of LM Studio version) | LM Studio's server-side response IDs (requires LM Studio ≥ 0.3.29; state lives inside LM Studio) |
+| Client install docs | Claude Code, Claude Desktop, Codex CLI, VS Code | Claude Desktop |
+| Docker image | not yet | yes |
+
+Two other TS/JS bridges exist — [`portertech/lm-studio-mcp-server`](https://github.com/portertech/lm-studio-mcp-server) and [`seajhawk/lmstudio-mcp`](https://github.com/seajhawk/lmstudio-mcp) — but both scope to list/load/unload only and have been dormant since February 2026.
+
+**Pick `infinitimeless/LMStudio-MCP`** if you want a Docker-first deployment or a Python stack.
+**Pick this one** if you want reasoning + stats exposed, `model_download`, TypeScript/Node for easy modification, or multi-turn history that's owned by the MCP server rather than LM Studio.
+
 ## Requirements
 
 - **Node.js ≥ 20** — `node -v`
