@@ -1,0 +1,83 @@
+{
+  "manifest_version": "0.3",
+  "name": "mcp-llm-studio",
+  "display_name": "LM Studio",
+  "version": "3.1.5",
+  "description": "Bridge MCP clients to a local LM Studio instance: model lifecycle, inference with reasoning & stats, SQLite chat, embeddings.",
+  "long_description": "An MCP server that bridges Claude Desktop (and other MCP clients) to a locally-running LM Studio instance. Exposes seven tools: list/load/unload/download for model lifecycle, ask for single-turn inference with reasoning and per-request stats (tok/s, TTFT), chat for multi-turn conversations with SQLite-persisted history, and embed for text embeddings. Hybrid API surface: LM Studio's native REST API for lifecycle and reasoning, OpenAI-compatible API for multi-turn chat and embeddings.",
+  "author": {
+    "name": "mecha1610",
+    "url": "https://github.com/mecha1610"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mecha1610/mcp-llm-studio.git"
+  },
+  "homepage": "https://github.com/mecha1610/mcp-llm-studio#readme",
+  "documentation": "https://github.com/mecha1610/mcp-llm-studio#readme",
+  "support": "https://github.com/mecha1610/mcp-llm-studio/issues",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "lm-studio",
+    "claude",
+    "claude-code",
+    "claude-desktop",
+    "llm",
+    "local-llm",
+    "embeddings",
+    "ai"
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/server.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/server.js"],
+      "env": {
+        "LM_STUDIO_URL": "${user_config.lm_studio_url}",
+        "LM_STUDIO_API_KEY": "${user_config.lm_studio_api_key}",
+        "MCP_SESSIONS_DB": "${user_config.sessions_db}"
+      }
+    }
+  },
+  "tools": [
+    { "name": "model_list", "description": "List models currently loaded in LM Studio" },
+    { "name": "model_load", "description": "Load a model into VRAM (synchronous)" },
+    { "name": "model_unload", "description": "Unload a model from VRAM" },
+    { "name": "model_download", "description": "Download a model from the LM Studio catalog or HuggingFace" },
+    { "name": "ask", "description": "Single-turn inference with reasoning control and per-request stats" },
+    { "name": "chat", "description": "Multi-turn conversation with SQLite-persisted history" },
+    { "name": "embed", "description": "Generate text embeddings" }
+  ],
+  "user_config": {
+    "lm_studio_url": {
+      "type": "string",
+      "title": "LM Studio URL",
+      "description": "Base URL of your LM Studio REST server. Default is fine if LM Studio runs on the same machine.",
+      "default": "http://localhost:1234",
+      "required": false
+    },
+    "lm_studio_api_key": {
+      "type": "string",
+      "title": "LM Studio API Key (optional)",
+      "description": "Only needed if LM Studio is configured with authentication. Leave empty otherwise.",
+      "sensitive": true,
+      "required": false
+    },
+    "sessions_db": {
+      "type": "file",
+      "title": "Chat sessions database",
+      "description": "Path to the SQLite file the chat tool uses to persist multi-turn history. Must live under a directory the server can create.",
+      "default": "${HOME}/.mcp-llm-studio/sessions.db",
+      "required": false
+    }
+  },
+  "compatibility": {
+    "runtimes": {
+      "node": ">=20.0.0"
+    },
+    "platforms": ["darwin", "win32", "linux"]
+  }
+}
