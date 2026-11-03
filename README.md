@@ -7,6 +7,14 @@
 
 An [MCP](https://modelcontextprotocol.io/) server that bridges [Claude Code](https://claude.com/claude-code) (and any other MCP client) to a local [LM Studio](https://lmstudio.ai/) instance. Load and unload models, download new ones from HuggingFace, run single-turn inference with reasoning and stats, and hold multi-turn chats with SQLite-persisted history — all from inside Claude.
 
+## Documentation
+
+- This README: [installation](#install), [configuration](#configuration),
+  [tools](#tools), [development](#development) and [architecture](#architecture).
+- [Agent integration](docs/agent-integration.md): call the server from another MCP client.
+- [Design history](docs/design-history.md): retained decisions and original implementation plans.
+- [Changelog](CHANGELOG.md) and [security policy](SECURITY.md).
+
 ## Why
 
 LM Studio runs LLMs locally. Claude Code doesn't talk to it out of the box. This server gives Claude seven tools that cover the whole local-LLM lifecycle, so you can say things like:
@@ -15,7 +23,7 @@ LM Studio runs LLMs locally. Claude Code doesn't talk to it out of the box. This
 
 …and Claude will orchestrate the calls itself.
 
-The server uses a **hybrid API surface**: LM Studio's native REST API (`/api/v1/*`) for model lifecycle and single-turn `ask` (gets reasoning + per-request stats), and the OpenAI-compatible API (`/v1/*`) for multi-turn `chat` (keeps history in SQLite — needed because the native chat endpoint can't replay assistant messages) and `embed`.
+The server uses a **hybrid API surface**: LM Studio's native REST API (`/api/v1/*`) for load, unload, download and single-turn `ask` (gets reasoning + per-request stats), and the OpenAI-compatible API (`/v1/*`) for `model_list`, multi-turn `chat` (keeps history in SQLite — needed because the native chat endpoint can't replay assistant messages) and `embed`.
 
 ## vs. other LM Studio MCP servers
 
@@ -129,8 +137,10 @@ Quick sanity check the package is installed:
 
 ```bash
 npx -y mcp-llm-studio --version
-# → 3.1.3
+# Prints the version resolved by npx
 ```
+
+For the version of this checkout, see [`package.json`](package.json).
 
 Then restart your MCP client and ask it: *"list the loaded LM Studio models"*.
 It should invoke `model_list` and print whatever is currently in VRAM.
@@ -165,13 +175,16 @@ Copy `.env.example` → `.env` for local overrides.
 | `SSE stream idle for 60000ms` on streamed `ask` | Model is too slow or LM Studio hung | Lower `max_tokens`, or unload + reload the model; raise via a custom client if intentional |
 | `command not found: npx` | Node not installed or PATH missing npm's bin | Install Node ≥ 20 from [nodejs.org](https://nodejs.org/) |
 | `EACCES` on first `npx -y mcp-llm-studio` | Old npm cache owned by root | `sudo chown -R $(whoami) ~/.npm` |
-| MCP client says the server exited | Wrong `LM_STUDIO_URL`, or the native API is disabled | Check `curl $LM_STUDIO_URL/api/v0/models` returns JSON |
+| MCP client says the server exited | Wrong `LM_STUDIO_URL`, or the native API is disabled | Check `curl "$LM_STUDIO_URL/api/v1/models"` succeeds, using your existing LM Studio authentication if enabled; see the [native API reference](https://lmstudio.ai/docs/developer/rest/list) |
 
 Run `claude mcp list` (or your client's equivalent) to confirm the server is registered and healthy.
 
 ## Tools
 
-### Model management — native `/api/v1/*`
+### Model management
+
+Load, unload and download use native `/api/v1/*` endpoints; listing uses the
+OpenAI-compatible `GET /v1/models` endpoint.
 
 | Tool | Params | Description |
 |---|---|---|

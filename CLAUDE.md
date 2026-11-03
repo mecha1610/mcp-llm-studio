@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-An MCP (Model Context Protocol) server that bridges Claude Code to local LM Studio models. It exposes seven tools over stdio transport, using a hybrid API surface: LM Studio's native REST API (`/api/v1/*`) for model lifecycle management (`model_list`, `model_load`, `model_unload`, `model_download`) and single-turn inference (`ask`), and the OpenAI-compatible API (`/v1/*`) for multi-turn chat with SQLite persistence (`chat`) and embeddings (`embed`).
+An MCP (Model Context Protocol) server that bridges Claude Code to local LM Studio models. It exposes seven tools over stdio transport, using a hybrid API surface: LM Studio's native REST API (`/api/v1/*`) for model lifecycle management (`model_load`, `model_unload`, `model_download`) and single-turn inference (`ask`), and the OpenAI-compatible API (`/v1/*`) for model listing (`model_list`), multi-turn chat with SQLite persistence (`chat`) and embeddings (`embed`).
 
 ## Commands
 
