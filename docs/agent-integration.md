@@ -50,14 +50,9 @@ await client.close();
 - Call `action: "reset"` to clear a session before starting a new research thread
 - The `system` prompt is applied only on the first message of a new session
 
-## Available Tools
+## Tool reference
 
-| Tool | Purpose |
-|------|---------|
-| `model_list` | List models loaded in LM Studio |
-| `model_load` | Load a model into VRAM (sync) |
-| `model_unload` | Unload a model from VRAM |
-| `model_download` | Download a model from catalog or HuggingFace (async polling) |
-| `ask` | Single-turn via native `/api/v1/chat`, returns text + reasoning + stats |
-| `chat` | Multi-turn with `session_id` and `action: send\|reset`, SQLite-backed |
-| `embed` | Generate embeddings via `/v1/embeddings` |
+See the [README tool reference](../README.md#tools) for all seven tools and their
+parameters. Use `model_list` to obtain model IDs from the running LM Studio instance.
+The example above assumes a built server; see [development](../README.md#development)
+and [installation](../README.md#install) for setup.
