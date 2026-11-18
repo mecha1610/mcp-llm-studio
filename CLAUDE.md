@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-An MCP (Model Context Protocol) server that bridges Claude Code to local LM Studio models. It exposes seven tools over stdio transport, using a hybrid API surface: LM Studio's native REST API (`/api/v1/*`) for model lifecycle management (`model_list`, `model_load`, `model_unload`, `model_download`) and single-turn inference (`ask`), and the OpenAI-compatible API (`/v1/*`) for multi-turn chat with SQLite persistence (`chat`) and embeddings (`embed`).
+An MCP (Model Context Protocol) server that bridges Claude Code to local LM Studio models. It exposes seven tools over stdio transport, using a hybrid API surface: LM Studio's native REST API (`/api/v1/*`) for model lifecycle management (`model_load`, `model_unload`, `model_download`) and single-turn inference (`ask`), and the OpenAI-compatible API (`/v1/*`) for model listing (`model_list`), multi-turn chat with SQLite persistence (`chat`) and embeddings (`embed`).
 
 ## Commands
 
@@ -44,7 +44,7 @@ Copy `.env.example` to `.env` for local overrides.
 
 ## Testing
 
-Tests are in `tests/tools/*.test.ts` using vitest. They import real handlers from `src/tools/*.ts` and mock `globalThis.fetch` with `vi.spyOn`. The chat handler accepts an optional `db` parameter injected as `:memory:` SQLite — no filesystem side effects.
+Tests are in `tests/tools/*.test.ts` and `tests/config.test.ts` using vitest. They import real handlers from `src/tools/*.ts` and mock `globalThis.fetch` with `vi.spyOn`. The chat handler requires a `database` parameter injected as `:memory:` SQLite — no filesystem side effects.
 
 ## Registration
 
@@ -71,11 +71,13 @@ claude mcp add llm-studio \
   messages. Do not "unify" them without revisiting this.
 - **`system` in `chat` applies only on the first turn of a new session.**
   Changing `system` on a later turn is silently ignored.
-- **`chat` handler accepts an optional `db` param** for test injection
+- **`chat` handler requires an injected `database` param** for test injection
   (`:memory:` SQLite). Keep this signature stable — all chat tests rely on it.
 - **Build marks `dist/server.js` executable** (`chmod +x` in the build script).
   Required for the `bin` entry (`npx mcp-llm-studio`) to work. Don't drop it.
 - **Input/response bounds are centralized in `src/config.ts`:**
-  `MAX_PROMPT_LEN` (1 MiB), `MAX_ID_LEN` (256), `MAX_EMBED_INPUT_ITEMS` (1024),
+  `MAX_PROMPT_LEN` (1,048,576 JavaScript string code units, not a UTF-8 byte ceiling), `MAX_ID_LEN` (256), `MAX_EMBED_INPUT_ITEMS` (1024),
   `MAX_SSE_BYTES` (10 MiB), `MAX_HISTORY_TURNS` (100). New tools should reuse
   these rather than define their own.
+
+Current implementation documentation: [index](docs/README.md). Historical design plans do not override implemented contracts.

@@ -42,7 +42,7 @@ Out of scope:
 
 ## Operational Notes
 
-- `MCP_SESSIONS_DB` stores the raw text of every `chat` turn, including anything
-  passed as `system`. Keep it under `$HOME` or another non-shared location.
+- `MCP_SESSIONS_DB` stores the raw text of successfully persisted `chat` turns, including the initial
+  `system` prompt. Keep it under `$HOME` or another non-shared location.
 - The server trusts its environment variables and the MCP client it is launched
   by. It is not designed to be exposed as a network service.

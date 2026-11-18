@@ -15,11 +15,11 @@ LM Studio runs LLMs locally. Claude Code doesn't talk to it out of the box. This
 
 …and Claude will orchestrate the calls itself.
 
-The server uses a **hybrid API surface**: LM Studio's native REST API (`/api/v1/*`) for model lifecycle and single-turn `ask` (gets reasoning + per-request stats), and the OpenAI-compatible API (`/v1/*`) for multi-turn `chat` (keeps history in SQLite — needed because the native chat endpoint can't replay assistant messages) and `embed`.
+The server uses a **hybrid API surface**: LM Studio's native REST API (`/api/v1/*`) for model load/unload/download and single-turn `ask` (gets reasoning + per-request stats), and the OpenAI-compatible API (`/v1/*`) for `model_list`, multi-turn `chat` (keeps history in SQLite — needed because the native chat endpoint can't replay assistant messages) and `embed`.
 
 ## vs. other LM Studio MCP servers
 
-A few open-source MCP bridges to LM Studio already exist. Honest comparison with the most-starred alternative:
+A few open-source MCP bridges to LM Studio already exist. Historical comparison with another implementation (external features and rankings are not revalidated by the source review below):
 
 | | `mcp-llm-studio` | [`infinitimeless/LMStudio-MCP`](https://github.com/infinitimeless/LMStudio-MCP) |
 |---|---|---|
@@ -32,7 +32,7 @@ A few open-source MCP bridges to LM Studio already exist. Honest comparison with
 | Client install docs | Claude Code, Claude Desktop, Codex CLI, VS Code | Claude Desktop |
 | Docker image | not yet | yes |
 
-Two other TS/JS bridges exist — [`portertech/lm-studio-mcp-server`](https://github.com/portertech/lm-studio-mcp-server) and [`seajhawk/lmstudio-mcp`](https://github.com/seajhawk/lmstudio-mcp) — but both scope to list/load/unload only and have been dormant since February 2026.
+Two other TS/JS bridges exist — [`portertech/lm-studio-mcp-server`](https://github.com/portertech/lm-studio-mcp-server) and [`seajhawk/lmstudio-mcp`](https://github.com/seajhawk/lmstudio-mcp) — their current scope and maintenance activity should be checked upstream before choosing a dependency.
 
 **Pick `infinitimeless/LMStudio-MCP`** if you want a Docker-first deployment or a Python stack.
 **Pick this one** if you want reasoning + stats exposed, `model_download`, TypeScript/Node for easy modification, or multi-turn history that's owned by the MCP server rather than LM Studio.
@@ -116,7 +116,7 @@ Add to `.vscode/mcp.json` at the workspace root (for user-level, run
 
 ```bash
 git clone https://github.com/mecha1610/mcp-llm-studio.git
-cd mcp-llm-studio && npm install && npm run build
+cd mcp-llm-studio && npm ci && npm run build
 
 claude mcp add llm-studio \
   -e LM_STUDIO_URL=http://localhost:1234 \
@@ -129,11 +129,11 @@ Quick sanity check the package is installed:
 
 ```bash
 npx -y mcp-llm-studio --version
-# → 3.1.3
+# Source version reviewed here: 3.1.5; npx resolves the published package, which may differ.
 ```
 
 Then restart your MCP client and ask it: *"list the loaded LM Studio models"*.
-It should invoke `model_list` and print whatever is currently in VRAM.
+It should invoke `model_list` and print model IDs returned by the upstream `/v1/models` endpoint; this is not an independent inventory of VRAM.
 
 ## Configuration
 
@@ -153,7 +153,7 @@ All `*_MS` values must be positive integers; invalid values fall back to the def
 
 Copy `.env.example` → `.env` for local overrides.
 
-> **Security note on `MCP_SESSIONS_DB`** — this SQLite file stores the raw text of every `chat` turn, including anything passed as `system`. Treat its path as a privileged location: keep it under `$HOME` (default), do not put it on a shared/world-readable volume, and do not point it at a path you do not control. The server creates the parent directory if missing and will happily write to any path the server process can reach.
+> **Security note on `MCP_SESSIONS_DB`** — this SQLite file stores the raw text of successfully persisted `chat` turns, including the initial `system` prompt. Treat its path as a privileged location: keep it under `$HOME` (default), do not put it on a shared/world-readable volume, and do not point it at a path you do not control. The server creates the parent directory if missing and will happily write to any path the server process can reach.
 
 ## Troubleshooting
 
@@ -162,20 +162,21 @@ Copy `.env.example` → `.env` for local overrides.
 | `ECONNREFUSED 127.0.0.1:1234` on any tool call | LM Studio server is not running | LM Studio → *Developer* tab → *Start Server* (port 1234) |
 | `Model not loaded: <name>` on `ask` / `chat` | No model in VRAM under that ID | Call `model_load` first, or pick an ID from `model_list` |
 | `LM Studio error: 404` on `model_download` | The catalog/HF URL did not resolve | Verify the ID on [lmstudio.ai/models](https://lmstudio.ai/models), or pass a full `hf:org/repo` URL |
-| `SSE stream idle for 60000ms` on streamed `ask` | Model is too slow or LM Studio hung | Lower `max_tokens`, or unload + reload the model; raise via a custom client if intentional |
+| `SSE stream idle for 60000ms` on streamed `ask` | Model is too slow or LM Studio hung | Lower `max_tokens`, or unload + reload the model; set LM_STUDIO_SSE_IDLE_TIMEOUT_MS intentionally after checking resource use |
 | `command not found: npx` | Node not installed or PATH missing npm's bin | Install Node ≥ 20 from [nodejs.org](https://nodejs.org/) |
-| `EACCES` on first `npx -y mcp-llm-studio` | Old npm cache owned by root | `sudo chown -R $(whoami) ~/.npm` |
-| MCP client says the server exited | Wrong `LM_STUDIO_URL`, or the native API is disabled | Check `curl $LM_STUDIO_URL/api/v0/models` returns JSON |
+| `EACCES` on first `npx -y mcp-llm-studio` | Old npm cache owned by root | Inspect cache ownership and npm configuration; do not apply broad recursive permission changes blindly |
+| MCP client says the server exited | Process startup/configuration or SQLite path failure | Read stderr and check MCP_SESSIONS_DB permissions; an unreachable LM Studio normally produces a tool error rather than a startup exit |
+| Model listing fails | LM Studio unreachable, wrong base URL or authentication | Check `curl --fail --max-time 5 "${LM_STUDIO_URL:-http://localhost:1234}/v1/models"`; this tests the OpenAI-compatible list endpoint, not native lifecycle/inference |
 
 Run `claude mcp list` (or your client's equivalent) to confirm the server is registered and healthy.
 
 ## Tools
 
-### Model management — native `/api/v1/*`
+### Model management — OpenAI-compatible listing, native mutations
 
 | Tool | Params | Description |
 |---|---|---|
-| `model_list` | — | List currently loaded models |
+| `model_list` | — | List IDs returned by OpenAI-compatible `GET /v1/models` |
 | `model_load` | `model`, `context_length?`, `gpu?`, `flash_attention?`, `ttl?` | Load a model into VRAM (synchronous, up to 5 min for large models) |
 | `model_unload` | `model` | Unload a model from VRAM |
 | `model_download` | `model`, `quantization?` | Download from LM Studio catalog or HuggingFace URL (async, polls up to 2 min, returns progress on timeout) |
@@ -216,6 +217,8 @@ npm run build         # tsc → dist/
 Tests mock `globalThis.fetch` with `vi.spyOn` and inject `:memory:` SQLite for `chat` — no network, no filesystem side effects. CI runs build + tests on every push.
 
 ## Architecture
+
+See [documentation index](docs/README.md) for source-grounded HLD, LLD, operational how-to and verification limits.
 
 ```
 src/
